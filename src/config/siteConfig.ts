@@ -15,8 +15,8 @@ export const SITE_CONFIG = {
   /** Portfolio shown at "/", e.g. "php-yourname" (VITE_DEFAULT_USERNAME). */
   defaultUsername: 'php-mdparvejhoque9',
   /**
-   * Optional: the only Gmail address allowed to complete the /setup form on a fresh
-   * deployment. Leave empty to let whoever opens /setup first become the owner.
+   * The site owner: the only Gmail address allowed to complete the /setup form on a
+   * fresh deployment (empty = whoever opens /setup first becomes the owner).
    */
-  ownerEmail: '',
+  ownerEmail: 'mdparvejhoque9@gmail.com',
 };

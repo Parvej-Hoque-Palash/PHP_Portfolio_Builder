@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Check, CheckCircle2, Copy, Globe, Link2, Loader2, RefreshCw } from 'lucide-react';
-import { googleConfig, isDefaultUsername } from '../../config/googleConfig';
+import { isDefaultUsername } from '../../config/googleConfig';
+import { resolveApiKey } from '../../services/userCredentials';
 import { resolveConfigFileId } from '../../services/portfolioRegistry';
 import { publicPortfolioUrl } from '../../services/driveService';
 
@@ -46,6 +47,15 @@ const CopyLine = ({ text, buttonLabel }: { text: string; buttonLabel?: string })
 /** Shows the account's public URL and what's needed for visitors to see it. */
 const PublishInfo = ({ username, configFileId, registryVersion, registryError, onRetryRegistry }: PublishInfoProps) => {
   const [listedFileId, setListedFileId] = useState<string | null | undefined>(undefined);
+  // The key visitors will use for this portfolio: the user's own, else the site's.
+  const [hasApiKey, setHasApiKey] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    resolveApiKey(username).then((key) => !cancelled && setHasApiKey(Boolean(key)));
+    return () => {
+      cancelled = true;
+    };
+  }, [username]);
 
   useEffect(() => {
     if (!username) return;
@@ -60,7 +70,7 @@ const PublishInfo = ({ username, configFileId, registryVersion, registryError, o
 
   const path = isDefaultUsername(username) ? '/' : `/${username}`;
   const url = `${window.location.origin}${path}`;
-  const isLive = Boolean(configFileId && listedFileId === configFileId && googleConfig.apiKey);
+  const isLive = Boolean(configFileId && listedFileId === configFileId && hasApiKey);
 
   return (
     <div className="rounded-xl bg-blue-50 px-4 py-4 text-sm text-blue-900 ring-1 ring-blue-200 space-y-3">
@@ -83,7 +93,7 @@ const PublishInfo = ({ username, configFileId, registryVersion, registryError, o
           <p className="flex items-center gap-2 font-medium">
             <Link2 size={16} /> Shareable link — anyone can open it, no sign-in needed. Add it to your CV.
           </p>
-          <CopyLine text={publicPortfolioUrl(configFileId)} buttonLabel="Copy Link" />
+          <CopyLine text={publicPortfolioUrl(configFileId, username)} buttonLabel="Copy Link" />
         </div>
       )}
 
@@ -107,9 +117,10 @@ const PublishInfo = ({ username, configFileId, registryVersion, registryError, o
         )
       )}
 
-      {configFileId && !googleConfig.apiKey && (
+      {configFileId && !hasApiKey && (
         <p className="text-xs text-blue-800/80">
-          Visitors can't load portfolios yet: this site has no Google API key. The site owner can add one on the{' '}
+          Visitors can't load your portfolio yet: there's no Google API key for it. Add your own on{' '}
+          <a href="/account" className="underline">My Google credentials</a>, or ask the site owner to add one on the{' '}
           <a href="/setup" className="underline">setup page</a>.
         </p>
       )}

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { GoogleOAuthProvider, googleLogout, useGoogleLogin, type TokenResponse } from '@react-oauth/google';
-import { googleConfig, isGoogleConfigured } from '../config/googleConfig';
+import { googleConfig } from '../config/googleConfig';
 import { clearDriveCache } from '../services/driveService';
 import type { AuthSession, GoogleUser } from '../types/google';
 import { isGmail } from '../utils/username';
@@ -47,43 +46,92 @@ async function fetchUserInfo(accessToken: string): Promise<GoogleUser> {
   return { id: data.sub, email: data.email, name: data.name, picture: data.picture };
 }
 
-interface LoginHandlers {
-  onToken: (token: Pick<TokenResponse, 'access_token' | 'expires_in'>) => void;
-  /** `message` is shown as-is; null when the help panel for `issue` says it all. */
-  onError: (issue: SignInIssue, message: string | null) => void;
+// --- Google Identity Services (loaded directly so each sign-in can use any Client ID) ---
+
+const GSI_SRC = 'https://accounts.google.com/gsi/client';
+
+interface GsiTokenResponse {
+  access_token?: string;
+  expires_in?: number | string;
+  error?: string;
+  error_description?: string;
 }
 
-function useGoogleTokenLogin({ onToken, onError }: LoginHandlers): () => void {
-  return useGoogleLogin({
-    scope: googleConfig.scopes.join(' '),
-    onSuccess: onToken,
-    // access_denied here means the user pressed Cancel on Google's consent screen.
-    onError: (err) =>
-      err.error === 'access_denied' ? onError('interrupted', null) : onError('failed', err.error_description ?? 'Google sign-in failed.'),
-    onNonOAuthError: (err) => {
-      if (err.type === 'popup_closed') onError('interrupted', null);
-      else if (err.type === 'popup_failed_to_open') onError('popup-blocked', null);
-      else onError('failed', `Google sign-in failed (${err.type}).`);
-    },
+interface GsiTokenClient {
+  requestAccessToken: (overrides?: { prompt?: string }) => void;
+}
+
+interface GsiOAuth2 {
+  initTokenClient: (config: {
+    client_id: string;
+    scope: string;
+    hint?: string;
+    callback: (response: GsiTokenResponse) => void;
+    error_callback?: (error: { type: string }) => void;
+  }) => GsiTokenClient;
+}
+
+const gsi = (): GsiOAuth2 | undefined =>
+  (window as unknown as { google?: { accounts?: { oauth2?: GsiOAuth2 } } }).google?.accounts?.oauth2;
+
+let gsiLoading: Promise<void> | null = null;
+
+/** Load Google's sign-in script once. The popup must open straight from a click, so load it early. */
+function loadGsi(): Promise<void> {
+  if (gsi()) return Promise.resolve();
+  gsiLoading ??= new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = GSI_SRC;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      gsiLoading = null;
+      reject(new Error('Could not load Google sign-in.'));
+    };
+    document.head.appendChild(script);
   });
+  return gsiLoading;
 }
 
-function useDisabledLogin({ onError }: LoginHandlers): () => void {
-  return useCallback(() => onError('not-configured', null), [onError]);
+const LAST_LOGIN_KEY = 'portfolio_last_login';
+
+function loadLastLogin(): LoginOptions | null {
+  try {
+    const raw = localStorage.getItem(LAST_LOGIN_KEY);
+    return raw ? (JSON.parse(raw) as LoginOptions) : null;
+  } catch {
+    return null;
+  }
 }
 
-// Google's library throws on init without a client ID, which would blank the whole
-// site. The choice is fixed at load time, so hook order stays stable.
-const useLogin = isGoogleConfigured() ? useGoogleTokenLogin : useDisabledLogin;
+function saveLastLogin(value: LoginOptions): void {
+  try {
+    localStorage.setItem(LAST_LOGIN_KEY, JSON.stringify(value));
+  } catch {
+    /* storage unavailable: only a convenience */
+  }
+}
+
+export interface LoginOptions {
+  /** OAuth Client ID to sign in through; defaults to the site's. */
+  clientId?: string;
+  /** Pre-selects this account in Google's chooser; with a user's own Client ID it must match. */
+  email?: string;
+}
 
 function AuthStateProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(loadSession);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issue, setIssue] = useState<SignInIssue | null>(null);
+  const [lastLogin, setLastLogin] = useState<LoginOptions | null>(loadLastLogin);
   const reportIssue = useCallback((next: SignInIssue, message: string | null) => {
     setIssue(next);
     setError(message);
+  }, []);
+
+  useEffect(() => {
+    loadGsi().catch(() => undefined); // retried on click
   }, []);
 
   const updateSession = useCallback((next: AuthSession | null) => {
@@ -93,36 +141,79 @@ function AuthStateProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     if (session?.accessToken) revokeToken(session.accessToken);
-    if (isGoogleConfigured()) googleLogout();
     clearDriveCache();
     updateSession(null);
   }, [session?.accessToken, updateSession]);
 
-  const login = useLogin({
-    onToken: async (tokenResponse) => {
+  const completeLogin = useCallback(
+    async (response: GsiTokenResponse, clientId: string, expectedEmail: string | undefined) => {
+      if (response.error || !response.access_token) {
+        // access_denied here means the user pressed Cancel on Google's consent screen.
+        if (!response.error || response.error === 'access_denied') reportIssue('interrupted', null);
+        else reportIssue('failed', response.error_description ?? `Google sign-in failed (${response.error}).`);
+        return;
+      }
+      const accessToken = response.access_token;
       setIsLoading(true);
       setError(null);
       try {
-        const user = await fetchUserInfo(tokenResponse.access_token);
+        const user = await fetchUserInfo(accessToken);
         if (!isGmail(user.email)) {
-          revokeToken(tokenResponse.access_token);
+          revokeToken(accessToken);
           reportIssue('failed', `Only Gmail accounts can sign in (${user.email} isn't a @gmail.com address).`);
           return;
         }
+        // Someone's own Client ID only signs in that person.
+        if (expectedEmail && clientId !== googleConfig.clientId && user.email.toLowerCase() !== expectedEmail.toLowerCase()) {
+          revokeToken(accessToken);
+          reportIssue('failed', `You chose ${user.email} in Google, but entered ${expectedEmail}. Sign in with ${expectedEmail}.`);
+          return;
+        }
         setIssue(null);
-        updateSession({
-          accessToken: tokenResponse.access_token,
-          expiresAt: Date.now() + tokenResponse.expires_in * 1000,
-          user,
-        });
+        const remembered = { clientId: clientId === googleConfig.clientId ? undefined : clientId, email: user.email.toLowerCase() };
+        saveLastLogin(remembered);
+        setLastLogin(remembered);
+        updateSession({ accessToken, expiresAt: Date.now() + Number(response.expires_in ?? 3600) * 1000, user, clientId });
       } catch (err) {
         reportIssue('failed', err instanceof Error ? err.message : 'Sign-in failed.');
       } finally {
         setIsLoading(false);
       }
     },
-    onError: reportIssue,
-  });
+    [reportIssue, updateSession],
+  );
+
+  const login = useCallback(
+    (options: LoginOptions = {}) => {
+      setIssue(null);
+      setError(null);
+      const clientId = options.clientId || googleConfig.clientId;
+      if (!clientId) return reportIssue('not-configured', null);
+      const oauth2 = gsi();
+      if (!oauth2) {
+        loadGsi().catch(() => undefined);
+        return reportIssue('failed', 'Google sign-in is still loading. Please click again in a moment.');
+      }
+      try {
+        oauth2
+          .initTokenClient({
+            client_id: clientId,
+            scope: googleConfig.scopes.join(' '),
+            hint: options.email,
+            callback: (response) => void completeLogin(response, clientId, options.email),
+            error_callback: (err) => {
+              if (err.type === 'popup_closed') reportIssue('interrupted', null);
+              else if (err.type === 'popup_failed_to_open') reportIssue('popup-blocked', null);
+              else reportIssue('failed', `Google sign-in failed (${err.type}).`);
+            },
+          })
+          .requestAccessToken();
+      } catch (err) {
+        reportIssue('failed', err instanceof Error ? err.message : 'Google sign-in failed.');
+      }
+    },
+    [completeLogin, reportIssue],
+  );
 
   // Implicit-flow tokens can't be refreshed silently; end the session when the token expires.
   useEffect(() => {
@@ -136,29 +227,22 @@ function AuthStateProvider({ children }: { children: ReactNode }) {
     () => ({
       user: session?.user ?? null,
       accessToken: session?.accessToken ?? null,
+      clientId: session?.clientId ?? null,
       isAuthenticated: Boolean(session),
       isLoading,
       error,
       issue,
-      login: () => {
-        setIssue(null);
-        setError(null);
-        login();
-      },
+      lastLogin,
+      login,
       logout,
     }),
-    [session, isLoading, error, issue, login, logout],
+    [session, isLoading, error, issue, lastLogin, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-/** Wraps the app with Google's OAuth script loader and the auth session state. */
+/** Provides the Google sign-in session to the app. */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  if (!isGoogleConfigured()) return <AuthStateProvider>{children}</AuthStateProvider>;
-  return (
-    <GoogleOAuthProvider clientId={googleConfig.clientId}>
-      <AuthStateProvider>{children}</AuthStateProvider>
-    </GoogleOAuthProvider>
-  );
+  return <AuthStateProvider>{children}</AuthStateProvider>;
 }

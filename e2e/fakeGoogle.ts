@@ -31,6 +31,13 @@ export interface SiteSettingsRecord {
   updatedAt: string;
 }
 
+export interface UserCredentialsRecord {
+  email: string;
+  googleClientId: string;
+  googleApiKey: string;
+  updatedAt: string;
+}
+
 export class FakeDrive {
   files = new Map<string, FakeFile>();
   /** public/portfolios.json as currently "deployed". */
@@ -39,6 +46,8 @@ export class FakeDrive {
   registered: Record<string, string> = {};
   /** API key the fake Drive accepts for public reads. */
   apiKey = API_KEY;
+  /** Per-user credentials held by the user-credentials Netlify Function. */
+  userCredentials: Record<string, { verified: UserCredentialsRecord | null; pending: UserCredentialsRecord | null }> = {};
   /** Settings held by the site-config Netlify Function; null = function not deployed. */
   siteSetup: { verified: SiteSettingsRecord | null; pending: SiteSettingsRecord | null } | null = null;
   private seq = 0;
@@ -78,6 +87,7 @@ window.google = {
       initTokenClient(config) {
         return {
           requestAccessToken() {
+            (window.__E2E_CLIENT_IDS = window.__E2E_CLIENT_IDS || []).push(config.client_id);
             const email = window.__E2E_ACCOUNT;
             if (!email) { config.error_callback && config.error_callback({ type: 'popup_closed' }); return; }
             setTimeout(() => config.callback({ access_token: 'tok:' + email, expires_in: 3599, scope: config.scope, token_type: 'Bearer' }), 20);
@@ -180,6 +190,35 @@ export async function installFakeGoogle(context: BrowserContext, drive: FakeDriv
     return reply(route, 200, setup);
   });
 
+  // user-credentials Netlify Function (netlify/functions/user-credentials.ts), minus Client ID
+  // checks. Like the real one, it exists only where site-config does.
+  await context.route('**/.netlify/functions/user-credentials**', async (route) => {
+    if (!drive.siteSetup) return route.fulfill({ status: 404, contentType: 'text/plain', body: 'Not Found' });
+    const req = route.request();
+    const view = (username: string) => ({ username, ...(drive.userCredentials[username] ?? { verified: null, pending: null }) });
+    if (req.method() === 'GET') return reply(route, 200, view(new URL(req.url()).searchParams.get('username') ?? ''));
+    const body = req.postDataJSON() as { action: string; email?: string; googleClientId?: string; googleApiKey?: string };
+    const caller = /^Bearer tok:(.+)$/.exec(req.headers()['authorization'] ?? '')?.[1] ?? null;
+    if (body.action === 'submit') {
+      const username = usernameFromEmail(body.email);
+      const record = drive.userCredentials[username] ?? { verified: null, pending: null };
+      if (record.verified && caller !== body.email) return reply(route, 403, { error: 'Sign in to change them.' });
+      record.pending = { email: body.email!, googleClientId: body.googleClientId!, googleApiKey: body.googleApiKey!, updatedAt: new Date().toISOString() };
+      drive.userCredentials[username] = record;
+      return reply(route, 200, view(username));
+    }
+    if (!caller) return reply(route, 401, { error: 'Sign in first.' });
+    const username = usernameFromEmail(caller);
+    const record = drive.userCredentials[username];
+    if (body.action === 'verify') {
+      if (!record?.pending) return reply(route, 409, { error: 'Nothing to confirm.' });
+      drive.userCredentials[username] = { verified: record.pending, pending: null };
+      return reply(route, 200, view(username));
+    }
+    delete drive.userCredentials[username];
+    return reply(route, 200, view(username));
+  });
+
   // Registry Netlify Function: same checks as netlify/functions/registry.ts
   await context.route('**/.netlify/functions/registry**', async (route) => {
     const req = route.request();
@@ -247,7 +286,8 @@ export async function installFakeGoogle(context: BrowserContext, drive: FakeDriv
     const mediaMatch = /^\/drive\/v3\/files\/([^/]+)$/.exec(path);
     if (mediaMatch && method === 'GET' && url.searchParams.get('alt') === 'media' && !caller) {
       const f = drive.files.get(decodeURIComponent(mediaMatch[1]));
-      if (url.searchParams.get('key') !== drive.apiKey) return reply(route, 400, { error: { message: 'API key not valid' } });
+      const ownKeys = Object.values(drive.userCredentials).map((r) => r.verified?.googleApiKey);
+      if (![drive.apiKey, ...ownKeys].includes(url.searchParams.get('key') ?? '')) return reply(route, 400, { error: { message: 'API key not valid' } });
       if (!f || !f.isPublic) return reply(route, 404, { error: { message: 'File not found' } });
       return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': f.mimeType }, body: f.content });
     }

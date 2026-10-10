@@ -187,8 +187,8 @@ export async function savePortfolioConfig(
 }
 
 /** Shareable link to the public, sign-in-free view of a published portfolio file. */
-export const publicPortfolioUrl = (fileId: string): string =>
-  `${window.location.origin}/portfolio?id=${encodeURIComponent(fileId)}`;
+export const publicPortfolioUrl = (fileId: string, username?: string): string =>
+  `${window.location.origin}/portfolio?id=${encodeURIComponent(fileId)}` + (username ? `&u=${encodeURIComponent(username)}` : '');
 
 export interface PublishResult {
   fileId: string;
@@ -221,9 +221,9 @@ export class MissingApiKeyError extends Error {
  * requests that carry neither a token nor an API key, so the browser API key
  * (VITE_GOOGLE_API_KEY) is required.
  */
-export async function fetchPublicPortfolio(fileId: string): Promise<PortfolioConfig> {
-  if (!googleConfig.apiKey) throw new MissingApiKeyError();
-  const params = new URLSearchParams({ alt: 'media', key: googleConfig.apiKey });
+export async function fetchPublicPortfolio(fileId: string, apiKey: string = googleConfig.apiKey): Promise<PortfolioConfig> {
+  if (!apiKey) throw new MissingApiKeyError();
+  const params = new URLSearchParams({ alt: 'media', key: apiKey });
   const res = await fetch(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?${params}`, {
     signal: AbortSignal.timeout(10000),
   });

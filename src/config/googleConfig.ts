@@ -21,9 +21,9 @@ export interface GoogleConfig {
 
 // Environment variables win; otherwise the committed public settings in siteConfig.ts.
 const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || SITE_CONFIG.googleClientId).trim();
-const ownerEmail = (import.meta.env.VITE_OWNER_EMAIL ?? '').trim().toLowerCase();
+const ownerEmail = (import.meta.env.VITE_OWNER_EMAIL || SITE_CONFIG.ownerEmail).trim().toLowerCase();
 
-/** "palash212" or "php-palash212" -> "php-palash212" */
+/** "mdparvejhoque9" or "php-mdparvejhoque9" -> "php-mdparvejhoque9" */
 function normalizeUsername(value: string): string {
   const v = value.trim().toLowerCase().replace(/\./g, '-');
   if (!v) return '';

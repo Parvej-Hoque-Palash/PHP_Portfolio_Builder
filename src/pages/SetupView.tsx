@@ -284,7 +284,7 @@ const SetupView = () => {
           <div className="space-y-3 text-sm text-gray-600">
             <p>Only the site owner can change these settings.</p>
             {!isAuthenticated ? (
-              <button type="button" className="btn-secondary" onClick={login} disabled={isLoading}>
+              <button type="button" className="btn-secondary" onClick={() => login()} disabled={isLoading}>
                 <LogIn size={16} /> Sign in as owner
               </button>
             ) : (

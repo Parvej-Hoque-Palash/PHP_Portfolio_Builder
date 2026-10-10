@@ -14,6 +14,7 @@ import SectionPage from './pages/SectionPage';
 import PortfolioView from './pages/PortfolioView';
 import PublicPortfolioView from './pages/PublicPortfolioView';
 import SetupView from './pages/SetupView';
+import AccountView from './pages/AccountView';
 
 // Pages of a portfolio, mounted both under "/" (default portfolio) and "/:username".
 // Usernames always start with "php-" (utils/username.ts), so they can't clash with
@@ -43,6 +44,8 @@ function App() {
         <Route path="/portfolio" element={<PublicPortfolioView />} />
         {/* One-time site setup by the deployer (Google Client ID + API key) */}
         <Route path="/setup" element={<SetupView />} />
+        {/* Each user's own Google Client ID + API key */}
+        <Route path="/account" element={<AccountView />} />
         <Route path="/" element={<PortfolioView />}>
           {portfolioPages}
         </Route>

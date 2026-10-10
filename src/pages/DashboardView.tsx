@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ExternalLink, HardDrive, Loader2, LogIn, LogOut, RefreshCw, Settings } from 'lucide-react';
+import { AlertTriangle, ExternalLink, HardDrive, KeyRound, Loader2, LogIn, LogOut, RefreshCw, Settings } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { usePortfolioEditor } from '../hooks/usePortfolioEditor';
-import { isGoogleConfigured, isDefaultUsername } from '../config/googleConfig';
+import { isDefaultUsername } from '../config/googleConfig';
 import { portfolioCache } from '../services/portfolioCache';
 import { registerPortfolio } from '../services/portfolioRegistry';
 import type { PortfolioData } from '../types/portfolio';
@@ -25,17 +25,9 @@ import ResearchEditor from '../components/dashboard/editors/ResearchEditor';
 import ExperienceEditor from '../components/dashboard/editors/ExperienceEditor';
 import EducationEditor from '../components/dashboard/editors/EducationEditor';
 import ContactEditor from '../components/dashboard/editors/ContactEditor';
-import SignInHelp from '../components/SignInHelp';
-import type { SignInIssue } from '../context/auth';
+import SignInPanel from '../components/SignInPanel';
 
-interface SignInCardProps {
-  onLogin: () => void;
-  isLoading: boolean;
-  error: string | null;
-  issue: SignInIssue | null;
-}
-
-const SignInCard = ({ onLogin, isLoading, error, issue }: SignInCardProps) => (
+const SignInCard = () => (
   <motion.div
     initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
@@ -49,34 +41,12 @@ const SignInCard = ({ onLogin, isLoading, error, issue }: SignInCardProps) => (
       Sign in with your <strong>Gmail</strong> account to edit your portfolio. Your content is saved to a{' '}
       <strong>My Portfolio Data</strong> folder in your own Google Drive.
     </p>
-    {isGoogleConfigured() ? (
-      <button type="button" className="btn-primary" onClick={onLogin} disabled={isLoading}>
-        {isLoading ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />}
-        Sign in with Google
-      </button>
-    ) : (
-      <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        {/* VITE_* values are baked in at build time, so a deployed site needs them set on the host. */}
-        {import.meta.env.DEV ? (
-          <>
-            Google login isn't configured. Set <code>VITE_GOOGLE_CLIENT_ID</code> in <code>.env.local</code> and restart
-            the dev server.
-          </>
-        ) : (
-          <>
-            Google login isn't set up on this site yet. If you deployed it,{' '}
-            <Link to="/setup" className="font-medium underline">open the setup page</Link> to connect your Google credentials.
-          </>
-        )}
-      </p>
-    )}
-    {error && <p className="text-sm text-red-600">{error}</p>}
-    {isGoogleConfigured() && <SignInHelp issue={issue} />}
+    <SignInPanel />
   </motion.div>
 );
 
 const DashboardView = () => {
-  const { user, accessToken, isAuthenticated, isLoading: authLoading, error: authError, issue: authIssue, login, logout } = useAuth();
+  const { user, accessToken, isAuthenticated, isLoading: authLoading, lastLogin, login, logout } = useAuth();
   // Remember the account's username across a session expiry (when `user` becomes null).
   const [username, setUsername] = useState('');
   useEffect(() => {
@@ -137,7 +107,7 @@ const DashboardView = () => {
   if (!isAuthenticated && !hasLoaded) {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-8">
-        <SignInCard onLogin={login} isLoading={authLoading} error={authError} issue={authIssue} />
+        <SignInCard />
       </div>
     );
   }
@@ -193,6 +163,11 @@ const DashboardView = () => {
                   View my portfolio <ExternalLink size={14} />
                 </Link>
               )}
+              {username && (
+                <a href="/account" className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-purple-700">
+                  <KeyRound size={14} /> My Google credentials
+                </a>
+              )}
               {/* The site owner manages the deployment's Google settings */}
               {username && isDefaultUsername(username) && (
                 <a href="/setup" className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-purple-700">
@@ -223,7 +198,7 @@ const DashboardView = () => {
           <div className="flex flex-wrap items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-800 ring-1 ring-amber-200">
             <AlertTriangle size={20} className="shrink-0" />
             <span className="flex-1 text-sm">Your Google session expired. Sign in again to save; your edits are kept.</span>
-            <button type="button" className="btn-secondary" onClick={login} disabled={authLoading}>
+            <button type="button" className="btn-secondary" onClick={() => login(lastLogin ?? undefined)} disabled={authLoading}>
               <LogIn size={16} /> Sign in
             </button>
           </div>

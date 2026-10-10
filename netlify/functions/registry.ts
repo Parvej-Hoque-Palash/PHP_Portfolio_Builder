@@ -1,6 +1,7 @@
 import { getStore } from '@netlify/blobs';
 import { usernameFromEmail } from '../../src/utils/username';
 import { acceptedClientIds, bearerToken, inspectToken, json } from '../lib/siteSettings';
+import { readUserCredentials } from '../lib/userCredentials';
 
 /**
  * Personal-URL registry: maps a username ("php-jane-doe") to the Drive file ID of
@@ -43,10 +44,12 @@ async function register(req: Request): Promise<Response> {
   // Who is calling? Google confirms the token and the account's email.
   const caller = await inspectToken(token);
   if (!caller) return json(401, { error: 'Your Google session has expired. Sign in again.' });
-  const clientIds = await acceptedClientIds();
-  if (clientIds.length > 0 && !clientIds.includes(caller.clientId)) return json(403, { error: 'Token was issued to another app.' });
   const username = usernameFromEmail(caller.email);
   if (!username) return json(403, { error: 'Only Gmail accounts can publish.' });
+  // The site's Client IDs, plus the caller's own if they brought one.
+  const own = (await readUserCredentials(username)).verified?.googleClientId;
+  const clientIds = [...(await acceptedClientIds()), ...(own ? [own] : [])];
+  if (!clientIds.includes(caller.clientId)) return json(403, { error: 'Token was issued to another app.' });
 
   // The file must be this account's own portfolio file.
   const fileRes = await fetch(

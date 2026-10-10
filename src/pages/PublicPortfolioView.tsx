@@ -3,8 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertTriangle, KeyRound, Loader2, RefreshCw } from 'lucide-react';
 import { PortfolioDataContext, type PortfolioDataContextValue } from '../context/portfolioData';
-import { googleConfig } from '../config/googleConfig';
-import { MISSING_API_KEY_MESSAGE, fetchPublicPortfolio } from '../services/driveService';
+import { MISSING_API_KEY_MESSAGE, MissingApiKeyError, fetchPublicPortfolio } from '../services/driveService';
+import { resolveApiKey } from '../services/userCredentials';
 import type { PortfolioData } from '../types/portfolio';
 import { STANDARD_PAGE_LABELS, isStandardPage, sectionIdOf, standardPageHasContent, type StandardPage } from '../utils/layout';
 import { createEmptyPortfolio, normalizePortfolio, publicSections } from '../utils/portfolio';
@@ -31,30 +31,33 @@ const PAGES: Record<StandardPage, ComponentType> = {
   resume: Resume,
 };
 
-type LoadState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; data: PortfolioData };
+type LoadState = { status: 'loading' } | { status: 'no-key' } | { status: 'error'; message: string } | { status: 'ready'; data: PortfolioData };
 
 /**
- * Sign-in-free view of a published portfolio at /portfolio?id=<Drive file ID>.
+ * Sign-in-free view of a published portfolio at /portfolio?id=<Drive file ID>[&u=<username>].
+ * `u` selects the owner's own API key, if they registered one; otherwise the site's is used.
  * Every visible page is shown on one scrolling page, in the owner's Layout order.
  */
 const PublicPortfolioView = () => {
   const [searchParams] = useSearchParams();
   const fileId = searchParams.get('id')?.trim() ?? '';
+  const owner = searchParams.get('u')?.trim().toLowerCase() ?? '';
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (!googleConfig.apiKey) return; // shown as a configuration warning below; nothing to fetch with
     if (!fileId) {
       setState({ status: 'error', message: 'This link is missing the portfolio ID (?id=…).' });
       return;
     }
     let cancelled = false;
     setState({ status: 'loading' });
-    fetchPublicPortfolio(fileId)
+    resolveApiKey(owner)
+      .then((apiKey) => fetchPublicPortfolio(fileId, apiKey))
       .then((raw) => !cancelled && setState({ status: 'ready', data: normalizePortfolio(raw, createEmptyPortfolio()) }))
       .catch((err: unknown) => {
         if (cancelled) return;
+        if (err instanceof MissingApiKeyError) return setState({ status: 'no-key' });
         const message =
           err instanceof DOMException && err.name === 'TimeoutError'
             ? 'Google Drive took too long to respond.'
@@ -66,15 +69,15 @@ const PublicPortfolioView = () => {
     return () => {
       cancelled = true;
     };
-  }, [fileId, attempt]);
+  }, [fileId, owner, attempt]);
 
   const fullName = state.status === 'ready' ? state.data.header.fullName : '';
   useEffect(() => {
     if (fullName) document.title = `${fullName} | Portfolio`;
   }, [fullName]);
 
-  // Visitors can't read Drive files without the site's browser API key.
-  if (!googleConfig.apiKey) {
+  // Visitors can't read Drive files without an API key (the owner's own or the site's).
+  if (state.status === 'no-key') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div role="alert" className="max-w-md w-full flex flex-col items-center gap-4 rounded-2xl bg-amber-50 p-8 text-center ring-1 ring-amber-200">

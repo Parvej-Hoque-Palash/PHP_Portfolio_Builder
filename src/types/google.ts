@@ -10,6 +10,8 @@ export interface AuthSession {
   /** Epoch milliseconds when the access token expires. */
   expiresAt: number;
   user: GoogleUser;
+  /** OAuth Client ID the token was issued to (the site's or the user's own). */
+  clientId?: string;
 }
 
 export interface DriveFile {

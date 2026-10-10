@@ -1,4 +1,4 @@
-/** Fixed signature prefix on every portfolio username, e.g. "php-palash212". */
+/** Fixed signature prefix on every portfolio username, e.g. "php-mdparvejhoque9". */
 export const USERNAME_PREFIX = 'php-';
 
 /** Only Gmail accounts can sign in (googlemail.com is Gmail's alternate domain). */
@@ -12,7 +12,7 @@ export const isGmail = (email: string | null | undefined): boolean =>
  * "+tag" removed and dots turned into hyphens. Non-Gmail addresses get "".
  * e.g. "Palash.212+cv@gmail.com" -> "php-palash-212"
  * Gmail local parts can't contain "-", so the mapping stays unambiguous, and the
- * result is also valid as a hostname label (e.g. php-palash212.example.com).
+ * result is also valid as a hostname label (e.g. php-mdparvejhoque9.example.com).
  */
 export function usernameFromEmail(email: string | null | undefined): string {
   if (!email || !isGmail(email)) return '';

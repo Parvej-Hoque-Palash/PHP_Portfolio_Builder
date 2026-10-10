@@ -25,10 +25,12 @@ export const PublishAppSteps = () => (
 interface SignInHelpProps {
   /** Why the last attempt failed; null shows only the "Trouble signing in?" link. */
   issue: SignInIssue | null;
+  /** Signing in through the user's own Google app: the fix is theirs, not the site owner's. */
+  ownApp?: boolean;
 }
 
 /** Explains failed Google sign-ins, above all "Error 403: access_denied" from an app in Testing mode. */
-const SignInHelp = ({ issue }: SignInHelpProps) => {
+const SignInHelp = ({ issue, ownApp = false }: SignInHelpProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   if (issue === 'popup-blocked') {
@@ -71,17 +73,26 @@ const SignInHelp = ({ issue }: SignInHelpProps) => {
             <div className="mt-2 space-y-3 rounded-lg bg-amber-50 px-4 py-3 text-amber-900 ring-1 ring-amber-200">
               <p className="flex items-start gap-2">
                 <ShieldAlert size={18} className="mt-0.5 shrink-0" />
-                <span>
-                  Did Google show <strong>"Error 403: access_denied"</strong>? This site's Google sign-in is still in{' '}
-                  <strong>Testing</strong> mode, so Google only lets in a few approved accounts. Your account is fine. The site
-                  owner needs to open sign-in to everyone.
-                </span>
+                {ownApp ? (
+                  <span>
+                    Did Google show <strong>"Error 403: access_denied"</strong>? Your own Google app (the Client ID you
+                    registered) is still in <strong>Testing</strong> mode. Publish it, or add your Gmail as a test user:
+                  </span>
+                ) : (
+                  <span>
+                    Did Google show <strong>"Error 403: access_denied"</strong>? This site's Google sign-in is still in{' '}
+                    <strong>Testing</strong> mode, so Google only lets in a few approved accounts. Your account is fine. The
+                    site owner needs to open sign-in to everyone.
+                  </span>
+                )}
               </p>
-              <p>
-                <strong>Not the owner?</strong> Please let the site owner know. It takes them about a minute.
-              </p>
+              {!ownApp && (
+                <p>
+                  <strong>Not the owner?</strong> Please let the site owner know. It takes them about a minute.
+                </p>
+              )}
               <div>
-                <p className="mb-1.5 font-semibold">Own this site? Here's the fix:</p>
+                <p className="mb-1.5 font-semibold">{ownApp ? "Here's the fix:" : "Own this site? Here's the fix:"}</p>
                 <PublishAppSteps />
                 <p className="mt-2 text-xs text-amber-800">
                   This site only asks for name, email and access to the files it creates itself, so Google doesn't require an

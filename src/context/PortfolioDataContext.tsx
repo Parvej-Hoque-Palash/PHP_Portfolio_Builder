@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { googleConfig, isDefaultUsername } from '../config/googleConfig';
+import { isDefaultUsername } from '../config/googleConfig';
 import { DEFAULT_PORTFOLIO } from '../data/defaultPortfolio';
 import { useAuth } from '../hooks/useAuth';
 import { readPortfolioConfig, readPublicPortfolioConfig } from '../services/driveService';
 import { portfolioCache } from '../services/portfolioCache';
 import { resolveConfigFileId } from '../services/portfolioRegistry';
+import { resolveApiKey } from '../services/userCredentials';
 import type { PortfolioData } from '../types/portfolio';
 import { createDefaultPortfolio, createEmptyPortfolio, normalizePortfolio } from '../utils/portfolio';
 import { usernameFromEmail } from '../utils/username';
@@ -46,7 +47,9 @@ export function PortfolioDataProvider({ username, basePath, children }: Portfoli
         if (stored) return stored.config;
       }
       const fileId = await resolveConfigFileId(username);
-      if (fileId && googleConfig.apiKey) return readPublicPortfolioConfig(fileId, googleConfig.apiKey);
+      // The owner's own API key if they registered one, else the site's.
+      const apiKey = fileId ? await resolveApiKey(username) : '';
+      if (fileId && apiKey) return readPublicPortfolioConfig(fileId, apiKey);
       return null;
     })()
       .then((raw) => {

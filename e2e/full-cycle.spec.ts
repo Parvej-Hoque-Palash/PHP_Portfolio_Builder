@@ -9,8 +9,8 @@ import { FOLDER, FakeDrive, PNG_1PX, TINY_PDF, installFakeGoogle } from './fakeG
  *   see the new content -> second Gmail user gets an isolated, blank portfolio.
  */
 
-const OWNER = 'palash212@gmail.com';
-const OWNER_SLUG = 'php-palash212';
+const OWNER = 'mdparvejhoque9@gmail.com';
+const OWNER_SLUG = 'php-mdparvejhoque9';
 const JANE = 'jane.doe@gmail.com';
 const JANE_SLUG = 'php-jane-doe';
 
@@ -50,7 +50,7 @@ test('full cycle: sign in, edit, upload, save, publish, view, second user', asyn
     await page.goto('/');
     await expect(sidebar(page)).toContainText('Md. Parvej Hoque Palash');
     await expect(sidebar(page).getByRole('link', { name: 'Dashboard' })).toHaveCount(0);
-    await page.goto('/palash212/skills'); // legacy form redirects to the prefixed URL
+    await page.goto('/mdparvejhoque9/skills'); // legacy form redirects to the prefixed URL
     await expect(page).toHaveURL(`/${OWNER_SLUG}/skills`);
     await expect(page.getByRole('heading', { name: 'My Skills' })).toBeVisible();
     await page.goto('/php-nobody');

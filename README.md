@@ -13,6 +13,28 @@ Users only need a Gmail account. They sign in, build their portfolio, and click
   and the file, so nobody can take over someone else's URL.
 - **Shareable link:** `/portfolio?id=<Drive file ID>`, shown with a **Copy Link** button in the dashboard.
 
+## Bring your own Google credentials (optional, per user)
+
+By default, everyone signs in through the site's Google app (set up once by the owner below).
+A user can instead connect **their own** Google Cloud project at **`/account`** (linked from the
+sign-in page and from the dashboard as *My Google credentials*):
+
+1. Enter their Gmail, their OAuth **Client ID** (with this site's address as an authorized
+   JavaScript origin) and their **API key** (restricted to the Drive API and this site).
+2. Confirm by signing in with Google through that Client ID. This proves the email is theirs and
+   that the Client ID works.
+
+After that:
+- Their sign-in goes through their own Google app. The sign-in page asks for the Gmail address
+  first so it can pick the right one.
+- Visitors load their portfolio (`/php-…` and the share link, which carries `&u=<username>`) with
+  their own API key.
+
+Credentials are stored per user in Netlify Blobs by `netlify/functions/user-credentials.ts`. Only
+the signed-in user can change or remove theirs, and new values take effect only after the same
+confirm-by-sign-in step. Their Google app must be **published** (see Troubleshooting), or Google
+answers `Error 403: access_denied`.
+
 ## One-time setup (site owner only)
 
 After deploying to Netlify, open **`https://<your-site>/setup`**:
