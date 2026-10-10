@@ -4,7 +4,7 @@ import { googleConfig, isGoogleConfigured } from '../config/googleConfig';
 import { clearDriveCache } from '../services/driveService';
 import type { AuthSession, GoogleUser } from '../types/google';
 import { isGmail } from '../utils/username';
-import { AuthContext, type AuthContextValue } from './auth';
+import { AuthContext, type AuthContextValue, type SignInIssue } from './auth';
 
 const STORAGE_KEY = 'portfolio_google_session';
 /** Treat the token as expired slightly early to avoid mid-request expiry. */
@@ -49,22 +49,27 @@ async function fetchUserInfo(accessToken: string): Promise<GoogleUser> {
 
 interface LoginHandlers {
   onToken: (token: Pick<TokenResponse, 'access_token' | 'expires_in'>) => void;
-  onError: (message: string) => void;
+  /** `message` is shown as-is; null when the help panel for `issue` says it all. */
+  onError: (issue: SignInIssue, message: string | null) => void;
 }
 
 function useGoogleTokenLogin({ onToken, onError }: LoginHandlers): () => void {
   return useGoogleLogin({
     scope: googleConfig.scopes.join(' '),
     onSuccess: onToken,
-    onError: (err) => onError(err.error_description ?? 'Google login failed'),
+    // access_denied here means the user pressed Cancel on Google's consent screen.
+    onError: (err) =>
+      err.error === 'access_denied' ? onError('interrupted', null) : onError('failed', err.error_description ?? 'Google sign-in failed.'),
     onNonOAuthError: (err) => {
-      if (err.type !== 'popup_closed') onError(`Google login failed: ${err.type}`);
+      if (err.type === 'popup_closed') onError('interrupted', null);
+      else if (err.type === 'popup_failed_to_open') onError('popup-blocked', null);
+      else onError('failed', `Google sign-in failed (${err.type}).`);
     },
   });
 }
 
 function useDisabledLogin({ onError }: LoginHandlers): () => void {
-  return useCallback(() => onError('Google sign-in isn\'t set up on this site yet. The site owner can set it up at /setup.'), [onError]);
+  return useCallback(() => onError('not-configured', null), [onError]);
 }
 
 // Google's library throws on init without a client ID, which would blank the whole
@@ -75,6 +80,11 @@ function AuthStateProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(loadSession);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [issue, setIssue] = useState<SignInIssue | null>(null);
+  const reportIssue = useCallback((next: SignInIssue, message: string | null) => {
+    setIssue(next);
+    setError(message);
+  }, []);
 
   const updateSession = useCallback((next: AuthSession | null) => {
     persistSession(next);
@@ -96,21 +106,22 @@ function AuthStateProvider({ children }: { children: ReactNode }) {
         const user = await fetchUserInfo(tokenResponse.access_token);
         if (!isGmail(user.email)) {
           revokeToken(tokenResponse.access_token);
-          setError(`Only Gmail accounts can sign in (${user.email} isn't a @gmail.com address).`);
+          reportIssue('failed', `Only Gmail accounts can sign in (${user.email} isn't a @gmail.com address).`);
           return;
         }
+        setIssue(null);
         updateSession({
           accessToken: tokenResponse.access_token,
           expiresAt: Date.now() + tokenResponse.expires_in * 1000,
           user,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Login failed');
+        reportIssue('failed', err instanceof Error ? err.message : 'Sign-in failed.');
       } finally {
         setIsLoading(false);
       }
     },
-    onError: setError,
+    onError: reportIssue,
   });
 
   // Implicit-flow tokens can't be refreshed silently; end the session when the token expires.
@@ -128,10 +139,15 @@ function AuthStateProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(session),
       isLoading,
       error,
-      login: () => login(),
+      issue,
+      login: () => {
+        setIssue(null);
+        setError(null);
+        login();
+      },
       logout,
     }),
-    [session, isLoading, error, login, logout],
+    [session, isLoading, error, issue, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, ExternalLink, KeyRound, Loader2, LogIn, LogOut, Pencil, Settings } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { googleConfig, isGoogleConfigured } from '../config/googleConfig';
+import SignInHelp, { PublishAppSteps } from '../components/SignInHelp';
 import { SITE_CONFIG_API, prefersCurrentSettings, startupSetup, type SiteSettings, type SiteSetup } from '../config/runtimeConfig';
 
 type Draft = Pick<SiteSettings, 'ownerEmail' | 'googleClientId' | 'googleApiKey'>;
@@ -99,6 +100,14 @@ const SettingsForm = ({ initial, lockEmail, submitLabel, onSubmit, onCancel }: S
           <code>{origin}/*</code>. Enable the Drive API for the project too.
         </p>
       </div>
+      <div className="rounded-lg bg-purple-50 px-4 py-3 text-sm text-purple-900 ring-1 ring-purple-100">
+        <p className="mb-1.5 font-semibold">Important: let every Gmail account sign in</p>
+        <p className="mb-2">
+          New Google projects start in <strong>Testing</strong> mode, where everyone except approved test users gets{' '}
+          <em>"Error 403: access_denied"</em>. Publish the app once:
+        </p>
+        <PublishAppSteps />
+      </div>
       <a
         href="https://console.cloud.google.com/apis/credentials"
         target="_blank"
@@ -129,7 +138,7 @@ const SettingsForm = ({ initial, lockEmail, submitLabel, onSubmit, onCancel }: S
  * Blobs; no code or Netlify configuration needed.
  */
 const SetupView = () => {
-  const { user, accessToken, isAuthenticated, isLoading, error: authError, login, logout } = useAuth();
+  const { user, accessToken, isAuthenticated, isLoading, error: authError, issue: authIssue, login, logout } = useAuth();
   const setup = startupSetup();
   const [isEditing, setIsEditing] = useState(false);
   const [wantsVerify, setWantsVerify] = useState(false);
@@ -222,6 +231,7 @@ const SetupView = () => {
           </div>
         )}
         {authError && <p className="text-sm text-red-600">{authError}</p>}
+        <SignInHelp issue={authIssue} />
         <div className="flex flex-wrap gap-3">
           <button type="button" className="btn-primary" onClick={confirm} disabled={isLoading || verifyState.status === 'working'}>
             {isLoading || verifyState.status === 'working' ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />}

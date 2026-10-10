@@ -82,3 +82,22 @@ test('site owner sets up Google credentials through /setup', async ({ browser })
   expect(errors).toEqual([]);
   await context.close();
 });
+
+test('a sign-in that does not finish (e.g. Google "Error 403: access_denied") explains the fix', async ({ browser }) => {
+  const context = await browser.newContext();
+  await installFakeGoogle(context, new FakeDrive(), null); // the Google window closes without signing in
+  const page = await context.newPage();
+  await page.goto('/dashboard');
+
+  // Help is one click away before anything goes wrong
+  await page.getByRole('button', { name: 'Trouble signing in?' }).click();
+  await expect(page.getByText('Error 403: access_denied')).toBeVisible();
+  await page.getByRole('button', { name: 'Trouble signing in?' }).click();
+
+  await page.getByRole('button', { name: 'Sign in with Google' }).click();
+  await expect(page.getByText("Sign-in didn't finish.")).toBeVisible();
+  await expect(page.getByText('Error 403: access_denied')).toBeVisible();
+  await expect(page.getByText('Publish app')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Google Auth Platform → Audience/ })).toHaveAttribute('href', 'https://console.cloud.google.com/auth/audience');
+  await context.close();
+});

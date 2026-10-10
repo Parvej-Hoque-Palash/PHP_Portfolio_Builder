@@ -62,3 +62,14 @@ useless anywhere else. In [Google Cloud Console → Credentials](https://console
 
 Also add your production domain to the OAuth client's **Authorized JavaScript origins**, so that
 dashboard sign-in works there.
+
+## Troubleshooting
+
+**"Error 403: access_denied" when someone signs in.** Your OAuth app is in **Testing** mode, which
+only allows listed test users. In Google Cloud Console, open **Google Auth Platform → Audience**
+(older consoles: *APIs & Services → OAuth consent screen*) and click **Publish app**. The site
+only uses the `openid`, `email`, `profile` and `drive.file` scopes, so Google doesn't require an app
+review for this. The sign-in page shows these steps when a sign-in doesn't finish.
+
+**"Error 400: origin_mismatch".** Add your site address (e.g. `https://your-site.netlify.app`) to the
+OAuth client's **Authorized JavaScript origins**.

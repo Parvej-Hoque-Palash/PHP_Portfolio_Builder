@@ -25,8 +25,17 @@ import ResearchEditor from '../components/dashboard/editors/ResearchEditor';
 import ExperienceEditor from '../components/dashboard/editors/ExperienceEditor';
 import EducationEditor from '../components/dashboard/editors/EducationEditor';
 import ContactEditor from '../components/dashboard/editors/ContactEditor';
+import SignInHelp from '../components/SignInHelp';
+import type { SignInIssue } from '../context/auth';
 
-const SignInCard = ({ onLogin, isLoading, error }: { onLogin: () => void; isLoading: boolean; error: string | null }) => (
+interface SignInCardProps {
+  onLogin: () => void;
+  isLoading: boolean;
+  error: string | null;
+  issue: SignInIssue | null;
+}
+
+const SignInCard = ({ onLogin, isLoading, error, issue }: SignInCardProps) => (
   <motion.div
     initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
@@ -62,11 +71,12 @@ const SignInCard = ({ onLogin, isLoading, error }: { onLogin: () => void; isLoad
       </p>
     )}
     {error && <p className="text-sm text-red-600">{error}</p>}
+    {isGoogleConfigured() && <SignInHelp issue={issue} />}
   </motion.div>
 );
 
 const DashboardView = () => {
-  const { user, accessToken, isAuthenticated, isLoading: authLoading, error: authError, login, logout } = useAuth();
+  const { user, accessToken, isAuthenticated, isLoading: authLoading, error: authError, issue: authIssue, login, logout } = useAuth();
   // Remember the account's username across a session expiry (when `user` becomes null).
   const [username, setUsername] = useState('');
   useEffect(() => {
@@ -127,7 +137,7 @@ const DashboardView = () => {
   if (!isAuthenticated && !hasLoaded) {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-8">
-        <SignInCard onLogin={login} isLoading={authLoading} error={authError} />
+        <SignInCard onLogin={login} isLoading={authLoading} error={authError} issue={authIssue} />
       </div>
     );
   }
