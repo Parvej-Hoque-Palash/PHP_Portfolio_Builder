@@ -1,3 +1,4 @@
+import { SITE_CONFIG } from './siteConfig';
 import { USERNAME_PREFIX, hasUsernamePrefix, usernameFromEmail } from '../utils/username';
 
 export interface GoogleConfig {
@@ -18,7 +19,8 @@ export interface GoogleConfig {
   defaultUsername: string;
 }
 
-const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
+// Environment variables win; otherwise the committed public settings in siteConfig.ts.
+const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || SITE_CONFIG.googleClientId).trim();
 const ownerEmail = (import.meta.env.VITE_OWNER_EMAIL ?? '').trim().toLowerCase();
 
 /** "palash212" or "php-palash212" -> "php-palash212" */
@@ -30,7 +32,7 @@ function normalizeUsername(value: string): string {
 
 if (!clientId && import.meta.env.DEV) {
   console.warn(
-    '[googleConfig] VITE_GOOGLE_CLIENT_ID is not set. Add it to .env.local to enable Google login.',
+    '[googleConfig] No Google client ID. Set googleClientId in src/config/siteConfig.ts (or VITE_GOOGLE_CLIENT_ID in .env.local) to enable Google login.',
   );
 }
 
@@ -45,10 +47,11 @@ export const googleConfig: GoogleConfig = {
   ],
   rootFolderName: 'My Portfolio Data',
   configFileName: 'portfolio_config.json',
-  apiKey: (import.meta.env.VITE_GOOGLE_API_KEY ?? '').trim(),
+  apiKey: (import.meta.env.VITE_GOOGLE_API_KEY || SITE_CONFIG.googleApiKey).trim(),
   publicConfigFileId: import.meta.env.VITE_PORTFOLIO_CONFIG_FILE_ID ?? '',
   ownerEmail,
-  defaultUsername: normalizeUsername(import.meta.env.VITE_DEFAULT_USERNAME ?? '') || usernameFromEmail(ownerEmail),
+  defaultUsername:
+    normalizeUsername(import.meta.env.VITE_DEFAULT_USERNAME || SITE_CONFIG.defaultUsername) || usernameFromEmail(ownerEmail),
 };
 
 export const isGoogleConfigured = (): boolean => Boolean(googleConfig.clientId);

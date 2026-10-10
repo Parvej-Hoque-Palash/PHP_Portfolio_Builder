@@ -4,33 +4,51 @@ Multi-user portfolio site. Each Gmail user edits their portfolio in `/dashboard`
 content is saved as `portfolio_config.json` in their own Google Drive and shared
 read-only with anyone who has the link.
 
-- **Shareable link:** `/portfolio?id=<Drive file ID>`. It's shown with a **Copy Link** button in the
-  dashboard after **Save & Publish**.
-- **Username URL:** `/php-<gmail-prefix>`. This needs an entry in `public/portfolios.json`, which is
-  added automatically when you save while running `npm run dev`.
+Users only need a Gmail account. They sign in, build their portfolio, and click
+**Save & Publish**. They never touch Netlify, GitHub or any configuration. Each user gets:
+
+- **Personal URL:** `/php-<gmail-prefix>` (e.g. `jane.doe@gmail.com` → `/php-jane-doe`). It's activated
+  automatically on save by the `registry` Netlify Function, which stores the username → Drive-file
+  mapping in Netlify Blobs. The function checks with Google that the caller owns that Gmail address
+  and the file, so nobody can take over someone else's URL.
+- **Shareable link:** `/portfolio?id=<Drive file ID>`, shown with a **Copy Link** button in the dashboard.
+
+## One-time setup (site owner only)
+
+The site needs three **public** values. They aren't secrets: they end up in the public JavaScript
+bundle anyway. Put them in **`src/config/siteConfig.ts`** and commit it, so that a plain
+GitHub → Netlify deploy works with no Netlify configuration:
+
+```ts
+export const SITE_CONFIG = {
+  googleClientId: '1234…apps.googleusercontent.com', // OAuth client for sign-in
+  googleApiKey: 'AIza…',                              // browser key, restricted (see below)
+  defaultUsername: 'php-yourname',                    // portfolio shown at "/"
+};
+```
+
+Alternatively, leave the file empty and set `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY` and
+`VITE_DEFAULT_USERNAME` as Netlify environment variables (Site configuration → Environment
+variables), then redeploy. Environment variables override `siteConfig.ts`. Vite builds them in
+at build time, so a change only takes effect after a new deploy.
+
+Without a client ID, the dashboard shows *"Google login isn't configured"*. Without an API key,
+public pages show *"Google API Key is not configured…"*.
+
+Personal URLs need the site to be deployed on **Netlify**, which runs `netlify/functions/registry.ts`
+and provides Blobs automatically with no setup. On other static hosts, the shareable `?id=` link
+still works. `public/portfolios.json` can also list usernames by hand. It's checked first, and
+`npm run dev` writes to it when you save locally.
 
 ## Local development
 
 ```bash
-cp .env.example .env.local   # fill in the values
+cp .env.example .env.local   # or fill in src/config/siteConfig.ts
 npm install
 npm run dev
 ```
 
-## Deploying to Netlify — environment variables checklist
-
-Vite bakes `VITE_*` variables into the JavaScript bundle at **build time**. `.env.local` is not
-uploaded to Netlify, so set the variables in **Netlify → Site configuration → Environment
-variables**, then **trigger a new deploy**. Changing a variable does nothing until the next build.
-
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `VITE_GOOGLE_API_KEY` | **Yes** | Lets visitors, who aren't signed in, read published portfolio files. Without it, public pages show *"Google API Key is not configured…"*. |
-| `VITE_GOOGLE_CLIENT_ID` | Yes | OAuth client used for dashboard sign-in. |
-| `VITE_DEFAULT_USERNAME` or `VITE_OWNER_EMAIL` | Yes | Whose portfolio is served at `/`. |
-| `VITE_PORTFOLIO_CONFIG_FILE_ID` | No | Fallback config file ID for the portfolio at `/`. |
-
-### Securing `VITE_GOOGLE_API_KEY`
+## Securing the API key
 
 The key ends up in the public JavaScript bundle, so anyone can read it. Restrict it so that it is
 useless anywhere else. In [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials), open the key and:

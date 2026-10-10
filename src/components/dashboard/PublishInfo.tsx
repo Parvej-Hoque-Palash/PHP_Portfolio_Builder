@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, CheckCircle2, Copy, Globe, Link2 } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, Copy, Globe, Link2, Loader2, RefreshCw } from 'lucide-react';
 import { googleConfig, isDefaultUsername } from '../../config/googleConfig';
 import { resolveConfigFileId } from '../../services/portfolioRegistry';
 import { publicPortfolioUrl } from '../../services/driveService';
@@ -8,8 +8,11 @@ interface PublishInfoProps {
   username: string;
   /** Drive ID of this account's portfolio_config.json (null until first save). */
   configFileId: string | null;
-  /** Changes when portfolios.json was updated, to re-check the listing. */
+  /** Changes when the personal-URL registry was updated, to re-check the listing. */
   registryVersion?: number;
+  /** Why the last attempt to claim the personal URL failed, if it did. */
+  registryError?: string | null;
+  onRetryRegistry?: () => void;
 }
 
 const CopyLine = ({ text, buttonLabel }: { text: string; buttonLabel?: string }) => {
@@ -41,7 +44,7 @@ const CopyLine = ({ text, buttonLabel }: { text: string; buttonLabel?: string })
 };
 
 /** Shows the account's public URL and what's needed for visitors to see it. */
-const PublishInfo = ({ username, configFileId, registryVersion }: PublishInfoProps) => {
+const PublishInfo = ({ username, configFileId, registryVersion, registryError, onRetryRegistry }: PublishInfoProps) => {
   const [listedFileId, setListedFileId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -85,15 +88,23 @@ const PublishInfo = ({ username, configFileId, registryVersion }: PublishInfoPro
       )}
 
       {configFileId && listedFileId !== undefined && listedFileId !== configFileId && (
-        <>
-          <p>
-            Visitors aren't signed in, so the site finds your file through <code>public/portfolios.json</code>. Saving
-            from the local dev server (<code>npm run dev</code>) adds this entry automatically; on the deployed site, add
-            it by hand and redeploy:
+        registryError ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-amber-800 ring-1 ring-amber-200">
+            <AlertTriangle size={16} className="shrink-0" />
+            <span className="flex-1 min-w-0">
+              Your personal URL isn't active yet: {registryError} The shareable link above already works.
+            </span>
+            {onRetryRegistry && (
+              <button type="button" className="btn-secondary" onClick={onRetryRegistry}>
+                <RefreshCw size={14} /> Retry
+              </button>
+            )}
+          </div>
+        ) : (
+          <p className="flex items-center gap-2 text-blue-800/80">
+            <Loader2 size={14} className="animate-spin" /> Activating your personal URL…
           </p>
-          <CopyLine text={`"${username}": "${configFileId}"`} />
-          <p className="text-xs text-blue-800/80">Until then, only you (while signed in) can see your published content.</p>
-        </>
+        )
       )}
 
       {configFileId && !googleConfig.apiKey && (

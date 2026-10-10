@@ -5,7 +5,7 @@ import { FOLDER, FakeDrive, PNG_1PX, TINY_PDF, installFakeGoogle } from './fakeG
  * Full product cycle against the production build, with Google sign-in and Drive
  * simulated (see fakeGoogle.ts):
  *   visitor sees built-in content -> non-Gmail rejected -> owner signs in, edits,
- *   uploads, saves -> file published in Drive -> registry entry added -> visitors
+ *   uploads, saves -> file published in Drive -> personal URL registered automatically -> visitors
  *   see the new content -> second Gmail user gets an isolated, blank portfolio.
  */
 
@@ -39,13 +39,6 @@ async function save(page: Page) {
   await expect(page.getByText(/Saved to Drive and published at/)).toBeVisible();
 }
 
-/** The `"slug": "fileId"` line the dashboard asks the admin to add to portfolios.json. */
-async function registryLine(page: Page, slug: string): Promise<[string, string]> {
-  const code = page.locator('code', { hasText: `"${slug}":` });
-  await expect(code).toBeVisible();
-  const [, key, id] = /"([^"]+)": "([^"]+)"/.exec((await code.textContent())!)!;
-  return [key, id];
-}
 
 test.describe.configure({ mode: 'serial' });
 
@@ -164,11 +157,10 @@ test('full cycle: sign in, edit, upload, save, publish, view, second user', asyn
     expect(drive.find(OWNER, 'certificate.pdf')!.content.length).toBeGreaterThan(6 * 1024 * 1024);
   });
 
-  await test.step('6. dashboard shows the registry line; admin adds it (simulated redeploy)', async () => {
-    const [key, id] = await registryLine(owner, OWNER_SLUG);
-    expect(key).toBe(OWNER_SLUG);
-    expect(id).toBe(drive.find(OWNER, 'portfolio_config.json')!.id);
-    drive.registry[key] = id;
+  await test.step('6. saving claims the personal URL automatically (no manual registry edit)', async () => {
+    await expect(owner.getByText('Public', { exact: true })).toBeVisible();
+    expect(drive.registered[OWNER_SLUG]).toBe(drive.find(OWNER, 'portfolio_config.json')!.id);
+    expect(drive.registry).toEqual({}); // portfolios.json untouched
   });
 
   await test.step('7. a signed-out visitor sees the published content', async () => {
@@ -253,16 +245,13 @@ test('full cycle: sign in, edit, upload, save, publish, view, second user', asyn
     expect(janeJson.skills).toEqual([]); // no inherited content
     expect(janeJson.contact.formspreeId).toBe('');
 
-    const [key, id] = await registryLine(jane, JANE_SLUG);
+    // Her personal URL is live right after saving
     await expect(jane.getByText(`/${JANE_SLUG}`).first()).toBeVisible();
+    await expect(jane.getByText('Public', { exact: true })).toBeVisible();
+    expect(drive.registered[JANE_SLUG]).toBe(janeConfig.id);
     await jane.context().close();
 
-    // Not public until listed in the registry
     const visitor = await openAs(browser, null);
-    await visitor.goto(`/${JANE_SLUG}`);
-    await expect(visitor.getByRole('heading', { name: 'Portfolio not found' })).toBeVisible();
-
-    drive.registry[key] = id;
     await visitor.goto('/jane-doe'); // un-prefixed form redirects
     await expect(visitor).toHaveURL(`/${JANE_SLUG}`);
     await expect(sidebar(visitor)).toContainText('Jane Doe');

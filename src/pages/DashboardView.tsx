@@ -47,7 +47,18 @@ const SignInCard = ({ onLogin, isLoading, error }: { onLogin: () => void; isLoad
       </button>
     ) : (
       <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Google login isn't configured. Set <code>VITE_GOOGLE_CLIENT_ID</code> in <code>.env.local</code>.
+        {/* VITE_* values are baked in at build time, so a deployed site needs them set on the host. */}
+        {import.meta.env.DEV ? (
+          <>
+            Google login isn't configured. Set <code>VITE_GOOGLE_CLIENT_ID</code> in <code>.env.local</code> and restart
+            the dev server.
+          </>
+        ) : (
+          <>
+            Google login isn't configured: this site was built without <code>VITE_GOOGLE_CLIENT_ID</code>. Add it in your
+            host's environment variables (Netlify: Site configuration → Environment variables), then redeploy.
+          </>
+        )}
       </p>
     )}
     {error && <p className="text-sm text-red-600">{error}</p>}
@@ -63,8 +74,20 @@ const DashboardView = () => {
   }, [user]);
 
   const userName = user?.name ?? '';
-  // Bumped when the save flow lists this account in portfolios.json, so PublishInfo re-checks.
+  // Personal URL (/php-…) registration, done automatically after every Save & Publish.
+  // registryVersion bumps when the registry changed, so PublishInfo re-checks it.
   const [registryVersion, setRegistryVersion] = useState(0);
+  const [registryError, setRegistryError] = useState<string | null>(null);
+  const claimPersonalUrl = useCallback(
+    (fileId: string) => {
+      if (!accessToken || !username) return;
+      registerPortfolio(accessToken, username, fileId).then((result) => {
+        setRegistryError(result.ok ? null : result.error);
+        if (result.ok && result.changed) setRegistryVersion((v) => v + 1);
+      });
+    },
+    [accessToken, username],
+  );
   const editor = usePortfolioEditor(accessToken, user?.id ?? null, {
     // The default portfolio's owner starts from the built-in content; everyone else starts blank.
     createInitial: useCallback(
@@ -74,12 +97,17 @@ const DashboardView = () => {
     onSaved: useCallback(
       (saved: PortfolioData, configFileId: string) => {
         portfolioCache.set(username, saved);
-        registerPortfolio(username, configFileId).then((changed) => changed && setRegistryVersion((v) => v + 1));
+        claimPersonalUrl(configFileId);
       },
-      [username],
+      [username, claimPersonalUrl],
     ),
   });
-  const { isDirty } = editor;
+  const { isDirty, configFileId } = editor;
+
+  // Portfolios saved before personal URLs were automatic get theirs on the next visit.
+  useEffect(() => {
+    if (configFileId) claimPersonalUrl(configFileId);
+  }, [configFileId, claimPersonalUrl]);
   const [tab, setTab] = useState<DashboardTab>('profile');
 
   // Warn before closing the tab with unsaved edits.
@@ -211,7 +239,13 @@ const DashboardView = () => {
               onSave={editor.save}
               onDiscard={editor.discard}
             />
-            <PublishInfo username={username} configFileId={editor.configFileId} registryVersion={registryVersion} />
+            <PublishInfo
+              username={username}
+              configFileId={configFileId}
+              registryVersion={registryVersion}
+              registryError={registryError}
+              onRetryRegistry={configFileId ? () => claimPersonalUrl(configFileId) : undefined}
+            />
             <DashboardTabs active={tab} onChange={setTab} />
             {renderTab()}
           </>

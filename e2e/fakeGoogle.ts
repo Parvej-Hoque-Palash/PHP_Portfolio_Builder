@@ -1,4 +1,5 @@
 import type { BrowserContext, Route } from '@playwright/test';
+import { usernameFromEmail } from '../src/utils/username';
 
 /**
  * In-memory stand-ins for everything the app talks to at Google:
@@ -27,6 +28,8 @@ export class FakeDrive {
   files = new Map<string, FakeFile>();
   /** public/portfolios.json as currently "deployed". */
   registry: Record<string, string> = {};
+  /** Usernames registered through the registry Netlify Function (Netlify Blobs). */
+  registered: Record<string, string> = {};
   private seq = 0;
 
   create(owner: string, meta: { name: string; mimeType: string; parents?: string[] }, content = Buffer.alloc(0)): FakeFile {
@@ -139,6 +142,26 @@ export async function installFakeGoogle(context: BrowserContext, drive: FakeDriv
 
   // Registry as currently deployed
   await context.route('**/portfolios.json', (route) => reply(route, 200, drive.registry));
+
+  // Registry Netlify Function: same checks as netlify/functions/registry.ts
+  await context.route('**/.netlify/functions/registry**', async (route) => {
+    const req = route.request();
+    if (req.method() === 'GET') {
+      const username = new URL(req.url()).searchParams.get('username') ?? '';
+      const fileId = drive.registered[username];
+      return fileId ? reply(route, 200, { username, fileId }) : reply(route, 404, { error: 'Not registered' });
+    }
+    const email = /^Bearer tok:(.+)$/.exec(req.headers()['authorization'] ?? '')?.[1];
+    if (!email) return reply(route, 401, { error: 'Sign in to publish.' });
+    const { fileId } = req.postDataJSON() as { fileId: string };
+    const file = drive.files.get(fileId);
+    if (!file || file.owner !== email || file.name !== 'portfolio_config.json') {
+      return reply(route, 403, { error: 'That file is not your portfolio file.' });
+    }
+    const username = usernameFromEmail(email);
+    drive.registered[username] = fileId;
+    return reply(route, 200, { username, fileId });
+  });
 
   // Third-party noise
   await context.route('https://countapi.mileshilliard.com/**', (route) => reply(route, 200, { value: 42 }));

@@ -24,37 +24,74 @@ export function loadRegistry(): Promise<PortfolioRegistry> {
   return registryPromise;
 }
 
-/** Config file ID for a username, or null if it isn't registered. */
+/** Netlify Function (netlify/functions/registry.ts) holding self-registered usernames; vite.config.ts serves it in dev. */
+export const REGISTRY_API = '/.netlify/functions/registry';
+
+const lookups = new Map<string, Promise<string | null>>();
+
+/** Ask the registry function for a username's file ID (null when unknown or unreachable). */
+function lookupRegistered(username: string): Promise<string | null> {
+  let pending = lookups.get(username);
+  if (!pending) {
+    pending = fetch(`${REGISTRY_API}?username=${encodeURIComponent(username)}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
+    })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        const body: unknown = await res.json();
+        const fileId = (body as { fileId?: unknown } | null)?.fileId;
+        return typeof fileId === 'string' && fileId ? fileId : null;
+      })
+      // No function deployed (e.g. a static host) or not JSON: treat as unregistered.
+      .catch(() => null);
+    lookups.set(username, pending);
+  }
+  return pending;
+}
+
+/**
+ * Config file ID for a username, or null if it isn't registered. Checked in order:
+ * public/portfolios.json (hand-maintained), the registry function (where users
+ * register themselves on save), then VITE_PORTFOLIO_CONFIG_FILE_ID for the default portfolio.
+ */
 export async function resolveConfigFileId(username: string): Promise<string | null> {
   const registry = await loadRegistry();
   if (registry[username]) return registry[username];
+  const registered = await lookupRegistered(username);
+  if (registered) return registered;
   if (username === googleConfig.defaultUsername && googleConfig.publicConfigFileId) return googleConfig.publicConfigFileId;
   return null;
 }
 
-/** Endpoint served by the dev server (vite.config.ts) that writes public/portfolios.json. */
-export const REGISTRY_ENDPOINT = '/__portfolio-registry';
+export type RegisterResult = { ok: true; changed: boolean } | { ok: false; error: string };
 
 /**
- * List `username` -> `fileId` in public/portfolios.json if it isn't already.
- * Only the local dev server can write the file; a static deployment can't, so
- * there this is a no-op and the dashboard shows the line to add by hand.
- * Resolves true when the file was changed.
+ * Point the signed-in user's personal URL (/php-…) at their portfolio file. The
+ * registry function derives the username from the access token, so users can
+ * only claim their own. Safe to call after every save.
  */
-export async function registerPortfolio(username: string, fileId: string): Promise<boolean> {
-  if (!import.meta.env.DEV || !username || !fileId) return false;
-  if ((await resolveConfigFileId(username)) === fileId) return false;
+export async function registerPortfolio(accessToken: string, username: string, fileId: string): Promise<RegisterResult> {
+  if (!username || !fileId) return { ok: false, error: 'Nothing to register yet.' };
+  if ((await resolveConfigFileId(username)) === fileId) return { ok: true, changed: false };
   try {
-    const res = await fetch(REGISTRY_ENDPOINT, {
+    const res = await fetch(REGISTRY_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, fileId }),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      // username is only read by the dev-server stand-in; the deployed function uses the token's account.
+      body: JSON.stringify({ fileId, username }),
     });
-    if (!res.ok) throw new Error(await res.text());
-  } catch (err) {
-    console.warn('[portfolioRegistry] Could not update public/portfolios.json:', err);
-    return false;
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: body?.error ?? (res.status === 404 ? 'The registry function is not deployed on this site.' : `Registry error (${res.status}).`),
+      };
+    }
+  } catch {
+    return { ok: false, error: 'Could not reach the registry. Check your connection and save again.' };
   }
-  registryPromise = null; // re-read the updated file
-  return true;
+  lookups.delete(username);
+  registryPromise = null;
+  return { ok: true, changed: true };
 }
