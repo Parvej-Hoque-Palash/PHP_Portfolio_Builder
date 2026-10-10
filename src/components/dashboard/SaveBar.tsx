@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, CheckCircle2, Loader2, RotateCcw, Save } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, RotateCcw, Send } from 'lucide-react';
 
 interface SaveBarProps {
   isDirty: boolean;
@@ -28,7 +28,7 @@ const SaveBar = ({ isDirty, isSaving, canSave, error, lastSavedAt, onSave, onDis
   } else if (lastSavedAt) {
     status = (
       <span className="inline-flex items-center gap-1.5 text-green-600">
-        <CheckCircle2 size={16} /> Saved to Drive at {lastSavedAt.toLocaleTimeString()}
+        <CheckCircle2 size={16} /> Saved to Drive and published at {lastSavedAt.toLocaleTimeString()}
       </span>
     );
   } else {
@@ -55,8 +55,8 @@ const SaveBar = ({ isDirty, isSaving, canSave, error, lastSavedAt, onSave, onDis
           )}
         </AnimatePresence>
         <button type="button" className="btn-primary" onClick={onSave} disabled={!isDirty || isSaving || !canSave}>
-          {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-          {isSaving ? 'Saving…' : 'Save Changes'}
+          {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+          {isSaving ? 'Publishing…' : 'Save & Publish'}
         </button>
       </div>
     </div>

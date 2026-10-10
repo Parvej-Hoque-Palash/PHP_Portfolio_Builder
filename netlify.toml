@@ -1,4 +1,5 @@
 # Netlify build settings (the SPA fallback lives in public/_redirects).
+# Set the VITE_* environment variables in the Netlify UI before deploying — see README.md.
 [build]
   command = "npm run build"
   publish = "dist"

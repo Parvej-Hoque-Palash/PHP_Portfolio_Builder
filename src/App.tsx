@@ -12,6 +12,7 @@ import Experience from './pages/Experience';
 import DashboardView from './pages/DashboardView';
 import SectionPage from './pages/SectionPage';
 import PortfolioView from './pages/PortfolioView';
+import PublicPortfolioView from './pages/PublicPortfolioView';
 
 // Pages of a portfolio, mounted both under "/" (default portfolio) and "/:username".
 // Usernames always start with "php-" (utils/username.ts), so they can't clash with
@@ -37,6 +38,8 @@ function App() {
     <Router>
       <Routes>
         <Route path="/dashboard" element={<DashboardView />} />
+        {/* Shareable, sign-in-free link: /portfolio?id=<Drive file ID> */}
+        <Route path="/portfolio" element={<PublicPortfolioView />} />
         <Route path="/" element={<PortfolioView />}>
           {portfolioPages}
         </Route>

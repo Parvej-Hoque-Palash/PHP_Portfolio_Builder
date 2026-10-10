@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Check, CheckCircle2, Copy, Globe } from 'lucide-react';
+import { Check, CheckCircle2, Copy, Globe, Link2 } from 'lucide-react';
 import { googleConfig, isDefaultUsername } from '../../config/googleConfig';
 import { resolveConfigFileId } from '../../services/portfolioRegistry';
+import { publicPortfolioUrl } from '../../services/driveService';
 
 interface PublishInfoProps {
   username: string;
@@ -11,7 +12,7 @@ interface PublishInfoProps {
   registryVersion?: number;
 }
 
-const CopyLine = ({ text }: { text: string }) => {
+const CopyLine = ({ text, buttonLabel }: { text: string; buttonLabel?: string }) => {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -25,9 +26,16 @@ const CopyLine = ({ text }: { text: string }) => {
   return (
     <div className="flex items-center gap-2">
       <code className="flex-1 min-w-0 truncate rounded-lg bg-white px-3 py-2 ring-1 ring-blue-100">{text}</code>
-      <button type="button" className="btn-icon" onClick={copy} title="Copy">
-        {copied ? <Check size={18} className="text-green-600" /> : <Copy size={18} />}
-      </button>
+      {buttonLabel ? (
+        <button type="button" className="btn-secondary shrink-0" onClick={copy}>
+          {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
+          {copied ? 'Copied!' : buttonLabel}
+        </button>
+      ) : (
+        <button type="button" className="btn-icon" onClick={copy} title="Copy">
+          {copied ? <Check size={18} className="text-green-600" /> : <Copy size={18} />}
+        </button>
+      )}
     </div>
   );
 };
@@ -65,7 +73,16 @@ const PublishInfo = ({ username, configFileId, registryVersion }: PublishInfoPro
         )}
       </p>
 
-      {!configFileId && <p>Save once to create your portfolio file in Google Drive.</p>}
+      {!configFileId && <p>Click Save &amp; Publish once to create your portfolio file in Google Drive and get a shareable link.</p>}
+
+      {configFileId && (
+        <div className="space-y-2 rounded-lg bg-white/60 p-3 ring-1 ring-blue-100">
+          <p className="flex items-center gap-2 font-medium">
+            <Link2 size={16} /> Shareable link — anyone can open it, no sign-in needed. Add it to your CV.
+          </p>
+          <CopyLine text={publicPortfolioUrl(configFileId)} buttonLabel="Copy Link" />
+        </div>
+      )}
 
       {configFileId && listedFileId !== undefined && listedFileId !== configFileId && (
         <>
@@ -81,7 +98,8 @@ const PublishInfo = ({ username, configFileId, registryVersion }: PublishInfoPro
 
       {configFileId && !googleConfig.apiKey && (
         <p className="text-xs text-blue-800/80">
-          The site also needs <code>VITE_GOOGLE_API_KEY</code> set to read public portfolio files.
+          Visitors can't load your portfolio yet: set <code>VITE_GOOGLE_API_KEY</code> (in Netlify: Site configuration →
+          Environment variables) and redeploy.
         </p>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { readPortfolioConfig, savePortfolioConfig } from '../services/driveService';
+import { publishPortfolioToDrive, readPortfolioConfig } from '../services/driveService';
 import type { Block, BlockType, ContentKey, LayoutItem, PortfolioContent, PortfolioData, PortfolioHeader } from '../types/portfolio';
 import { sectionLayoutId } from '../utils/layout';
 import { createBlock, createSection, normalizePortfolio } from '../utils/portfolio';
@@ -174,11 +174,11 @@ export function usePortfolioEditor(
     setIsSaving(true);
     setSaveError(null);
     try {
-      const file = await savePortfolioConfig(accessToken, data);
-      setConfigFileId(file.id);
+      const { fileId } = await publishPortfolioToDrive(data, accessToken);
+      setConfigFileId(fileId);
       setSavedSnapshot(snapshot);
       setLastSavedAt(new Date());
-      onSaved?.(data, file.id);
+      onSaved?.(data, fileId);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {

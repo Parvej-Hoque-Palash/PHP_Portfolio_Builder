@@ -186,6 +186,59 @@ export async function savePortfolioConfig(
   return saved;
 }
 
+/** Shareable link to the public, sign-in-free view of a published portfolio file. */
+export const publicPortfolioUrl = (fileId: string): string =>
+  `${window.location.origin}/portfolio?id=${encodeURIComponent(fileId)}`;
+
+export interface PublishResult {
+  fileId: string;
+  /** e.g. https://example.com/portfolio?id=<fileId> */
+  publicUrl: string;
+}
+
+/**
+ * Save portfolio_config.json to the signed-in user's Drive and share it with
+ * "anyone with the link" (reader), so the public URL works without signing in.
+ */
+export async function publishPortfolioToDrive(portfolioData: PortfolioConfig, accessToken: string): Promise<PublishResult> {
+  const file = await savePortfolioConfig(accessToken, portfolioData); // uploads, then sets the permission
+  return { fileId: file.id, publicUrl: publicPortfolioUrl(file.id) };
+}
+
+export const MISSING_API_KEY_MESSAGE =
+  'Google API Key is not configured. Please set VITE_GOOGLE_API_KEY in your environment variables.';
+
+/** Thrown before any request when VITE_GOOGLE_API_KEY isn't set. */
+export class MissingApiKeyError extends Error {
+  constructor() {
+    super(MISSING_API_KEY_MESSAGE);
+    this.name = 'MissingApiKeyError';
+  }
+}
+
+/**
+ * Read a published portfolio_config.json without signing in. Drive's API rejects
+ * requests that carry neither a token nor an API key, so the browser API key
+ * (VITE_GOOGLE_API_KEY) is required.
+ */
+export async function fetchPublicPortfolio(fileId: string): Promise<PortfolioConfig> {
+  if (!googleConfig.apiKey) throw new MissingApiKeyError();
+  const params = new URLSearchParams({ alt: 'media', key: googleConfig.apiKey });
+  const res = await fetch(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?${params}`, {
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) {
+    const reason =
+      res.status === 404
+        ? 'This portfolio does not exist or is not shared publicly.'
+        : res.status === 403 || res.status === 401
+          ? 'This portfolio is not shared publicly, or the site\'s Google API key was rejected.'
+          : `Google Drive returned an error (${res.status}).`;
+    throw new DriveApiError(reason, res.status);
+  }
+  return res.json() as Promise<PortfolioConfig>;
+}
+
 // ---------------------------------------------------------------------------
 // File uploads (images / PDFs)
 // ---------------------------------------------------------------------------

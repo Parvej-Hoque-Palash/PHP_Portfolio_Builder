@@ -45,7 +45,7 @@ export const googleConfig: GoogleConfig = {
   ],
   rootFolderName: 'My Portfolio Data',
   configFileName: 'portfolio_config.json',
-  apiKey: import.meta.env.VITE_GOOGLE_API_KEY ?? '',
+  apiKey: (import.meta.env.VITE_GOOGLE_API_KEY ?? '').trim(),
   publicConfigFileId: import.meta.env.VITE_PORTFOLIO_CONFIG_FILE_ID ?? '',
   ownerEmail,
   defaultUsername: normalizeUsername(import.meta.env.VITE_DEFAULT_USERNAME ?? '') || usernameFromEmail(ownerEmail),

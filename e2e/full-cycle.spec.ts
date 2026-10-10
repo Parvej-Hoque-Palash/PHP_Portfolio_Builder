@@ -27,7 +27,7 @@ async function openAs(browser: Browser, account: string | null): Promise<Page> {
 }
 
 const sidebar = (page: Page) => page.locator('aside');
-const saveButton = (page: Page) => page.getByRole('button', { name: 'Save Changes' });
+const saveButton = (page: Page) => page.getByRole('button', { name: 'Save & Publish' });
 
 async function signIn(page: Page) {
   await page.goto('/dashboard');
@@ -36,7 +36,7 @@ async function signIn(page: Page) {
 
 async function save(page: Page) {
   await saveButton(page).click();
-  await expect(page.getByText(/Saved to Drive at/)).toBeVisible();
+  await expect(page.getByText(/Saved to Drive and published at/)).toBeVisible();
 }
 
 /** The `"slug": "fileId"` line the dashboard asks the admin to add to portfolios.json. */
@@ -80,7 +80,7 @@ test('full cycle: sign in, edit, upload, save, publish, view, second user', asyn
     await signIn(owner);
     await expect(owner.getByLabel('Full Name')).toHaveValue('Md. Parvej Hoque Palash');
     await expect(owner.getByText('Unsaved changes')).toBeVisible(); // first save publishes
-    await expect(owner.getByText('Save once to create your portfolio file')).toBeVisible();
+    await expect(owner.getByText(/once to create your portfolio file/)).toBeVisible();
   });
 
   await test.step('4. owner edits profile, uploads photo + resume, adds a project and a custom section, edits the layout', async () => {
@@ -196,6 +196,30 @@ test('full cycle: sign in, edit, upload, save, publish, view, second user', asyn
 
     await visitor.goto('/resume');
     await expect(visitor.locator('iframe[title="Resume"]')).toHaveAttribute('src', /drive\.google\.com\/file\/d\//);
+    await visitor.context().close();
+  });
+
+  await test.step('7b. the shareable /portfolio?id= link works signed-out, in Layout order', async () => {
+    const link = owner.locator('code', { hasText: '/portfolio?id=' });
+    await expect(link).toBeVisible();
+    const url = new URL((await link.textContent())!);
+    expect(url.searchParams.get('id')).toBe(drive.find(OWNER, 'portfolio_config.json')!.id);
+    await expect(owner.getByRole('button', { name: 'Copy Link' })).toBeVisible();
+
+    const visitor = await openAs(browser, null);
+    await visitor.goto(url.pathname + url.search);
+    const nav = visitor.getByRole('navigation', { name: 'Portfolio sections' }).getByRole('button');
+    await expect(nav.first()).toHaveText('Home');
+    await expect(nav.nth(1)).toHaveText('Certificates');
+    await expect(nav.filter({ hasText: 'Skills' })).toHaveCount(0); // hidden in Layout
+    await expect(visitor.getByText('AI Engineer (E2E)').first()).toBeVisible();
+    await expect(visitor.getByText('E2E Project')).toBeVisible();
+    await expect(visitor.getByText('Certified in end-to-end testing.')).toBeVisible();
+
+    await visitor.goto('/portfolio');
+    await expect(visitor.getByText('This link is missing the portfolio ID')).toBeVisible();
+    await visitor.goto('/portfolio?id=doesNotExist123');
+    await expect(visitor.getByRole('heading', { name: "Couldn't open this portfolio" })).toBeVisible();
     await visitor.context().close();
   });
 
