@@ -24,12 +24,23 @@ export interface FakeFile {
   isPublic: boolean;
 }
 
+export interface SiteSettingsRecord {
+  ownerEmail: string;
+  googleClientId: string;
+  googleApiKey: string;
+  updatedAt: string;
+}
+
 export class FakeDrive {
   files = new Map<string, FakeFile>();
   /** public/portfolios.json as currently "deployed". */
   registry: Record<string, string> = {};
   /** Usernames registered through the registry Netlify Function (Netlify Blobs). */
   registered: Record<string, string> = {};
+  /** API key the fake Drive accepts for public reads. */
+  apiKey = API_KEY;
+  /** Settings held by the site-config Netlify Function; null = function not deployed. */
+  siteSetup: { verified: SiteSettingsRecord | null; pending: SiteSettingsRecord | null } | null = null;
   private seq = 0;
 
   create(owner: string, meta: { name: string; mimeType: string; parents?: string[] }, content = Buffer.alloc(0)): FakeFile {
@@ -143,6 +154,32 @@ export async function installFakeGoogle(context: BrowserContext, drive: FakeDriv
   // Registry as currently deployed
   await context.route('**/portfolios.json', (route) => reply(route, 200, drive.registry));
 
+  // site-config Netlify Function (netlify/functions/site-config.ts), minus the Client ID check
+  // (fake tokens don't carry one). Absent unless the test turns it on.
+  await context.route('**/.netlify/functions/site-config', async (route) => {
+    const setup = drive.siteSetup;
+    if (!setup) return route.fulfill({ status: 404, contentType: 'text/plain', body: 'Not Found' });
+    const req = route.request();
+    if (req.method() === 'GET') return reply(route, 200, setup);
+    const body = req.postDataJSON() as { action: string } & Partial<SiteSettingsRecord>;
+    const caller = /^Bearer tok:(.+)$/.exec(req.headers()['authorization'] ?? '')?.[1] ?? null;
+    if (body.action === 'submit') {
+      if (setup.verified && caller !== setup.verified.ownerEmail) return reply(route, 403, { error: 'Only the site owner can change these settings.' });
+      setup.pending = {
+        ownerEmail: body.ownerEmail!,
+        googleClientId: body.googleClientId!,
+        googleApiKey: body.googleApiKey!,
+        updatedAt: new Date().toISOString(),
+      };
+      return reply(route, 200, setup);
+    }
+    if (!setup.pending) return reply(route, 409, { error: 'Nothing to confirm.' });
+    if (caller !== setup.pending.ownerEmail) return reply(route, 403, { error: `Signed in as ${caller}, but the owner is ${setup.pending.ownerEmail}.` });
+    setup.verified = setup.pending;
+    setup.pending = null;
+    return reply(route, 200, setup);
+  });
+
   // Registry Netlify Function: same checks as netlify/functions/registry.ts
   await context.route('**/.netlify/functions/registry**', async (route) => {
     const req = route.request();
@@ -210,7 +247,7 @@ export async function installFakeGoogle(context: BrowserContext, drive: FakeDriv
     const mediaMatch = /^\/drive\/v3\/files\/([^/]+)$/.exec(path);
     if (mediaMatch && method === 'GET' && url.searchParams.get('alt') === 'media' && !caller) {
       const f = drive.files.get(decodeURIComponent(mediaMatch[1]));
-      if (url.searchParams.get('key') !== API_KEY) return reply(route, 400, { error: { message: 'API key not valid' } });
+      if (url.searchParams.get('key') !== drive.apiKey) return reply(route, 400, { error: { message: 'API key not valid' } });
       if (!f || !f.isPublic) return reply(route, 404, { error: { message: 'File not found' } });
       return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': f.mimeType }, body: f.content });
     }

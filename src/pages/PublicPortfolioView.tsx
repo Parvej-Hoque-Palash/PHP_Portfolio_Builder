@@ -83,6 +83,7 @@ const PublicPortfolioView = () => {
           </div>
           <h1 className="text-xl font-bold text-amber-900">Site configuration needed</h1>
           <p className="text-amber-800">{MISSING_API_KEY_MESSAGE}</p>
+          <a href="/setup" className="text-sm font-medium text-amber-900 underline">Site owner: open the setup page</a>
         </div>
       </div>
     );

@@ -9,9 +9,14 @@
  */
 export const SITE_CONFIG = {
   /** OAuth 2.0 Web client ID used for dashboard sign-in (VITE_GOOGLE_CLIENT_ID). */
-  googleClientId: '',
+  googleClientId: '442206733462-b4p4eq7o2m7gj06tdnucb7125ciads1i.apps.googleusercontent.com',
   /** Browser API key visitors use to read published portfolio files (VITE_GOOGLE_API_KEY). */
-  googleApiKey: '',
+  googleApiKey: 'AIzaSyDnJcT_HB-G0N1TV1N9MmzZObx6ULlGavg',
   /** Portfolio shown at "/", e.g. "php-yourname" (VITE_DEFAULT_USERNAME). */
-  defaultUsername: '',
+  defaultUsername: 'php-mdparvejhoque9',
+  /**
+   * Optional: the only Gmail address allowed to complete the /setup form on a fresh
+   * deployment. Leave empty to let whoever opens /setup first become the owner.
+   */
+  ownerEmail: '',
 };

@@ -15,25 +15,26 @@ Users only need a Gmail account. They sign in, build their portfolio, and click
 
 ## One-time setup (site owner only)
 
-The site needs three **public** values. They aren't secrets: they end up in the public JavaScript
-bundle anyway. Put them in **`src/config/siteConfig.ts`** and commit it, so that a plain
-GitHub → Netlify deploy works with no Netlify configuration:
+After deploying to Netlify, open **`https://<your-site>/setup`**:
 
-```ts
-export const SITE_CONFIG = {
-  googleClientId: '1234…apps.googleusercontent.com', // OAuth client for sign-in
-  googleApiKey: 'AIza…',                              // browser key, restricted (see below)
-  defaultUsername: 'php-yourname',                    // portfolio shown at "/"
-};
-```
+1. **Step 1:** enter your Gmail address, your Google OAuth **Client ID** and your browser **API key**.
+   The form shows exactly which origin to authorize in Google Cloud Console.
+2. **Step 2:** sign in with Google as that Gmail address. This proves the Client ID works and that
+   you own the email. Only then does the whole site switch to the new settings.
 
-Alternatively, leave the file empty and set `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY` and
-`VITE_DEFAULT_USERNAME` as Netlify environment variables (Site configuration → Environment
-variables), then redeploy. Environment variables override `siteConfig.ts`. Vite builds them in
-at build time, so a change only takes effect after a new deploy.
+The settings are stored in Netlify Blobs by `netlify/functions/site-config.ts`. No code changes,
+environment variables or redeploys are needed. Once verified, only the owner (signed in) can change
+them. Changes go through the same confirm-by-sign-in step, so a typo can't break sign-in for
+everyone. Your portfolio becomes the one shown at `/`, and the dashboard shows you a
+**Site settings** link.
 
-Without a client ID, the dashboard shows *"Google login isn't configured"*. Without an API key,
-public pages show *"Google API Key is not configured…"*.
+> **Claiming a fresh deployment:** until setup is verified, whoever opens `/setup` first can claim
+> the site. Do it right after deploying, or set `ownerEmail` in `src/config/siteConfig.ts` (or an
+> `OWNER_EMAIL` Netlify variable) so only that Gmail address can complete setup.
+
+**Built-in defaults:** `src/config/siteConfig.ts` (or `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`,
+`VITE_DEFAULT_USERNAME` environment variables) is used when nothing has been saved through `/setup`,
+and locally with `npm run dev`. Settings verified through `/setup` override both.
 
 Personal URLs need the site to be deployed on **Netlify**, which runs `netlify/functions/registry.ts`
 and provides Blobs automatically with no setup. On other static hosts, the shareable `?id=` link

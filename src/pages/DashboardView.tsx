@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ExternalLink, HardDrive, Loader2, LogIn, LogOut, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ExternalLink, HardDrive, Loader2, LogIn, LogOut, RefreshCw, Settings } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { usePortfolioEditor } from '../hooks/usePortfolioEditor';
 import { isGoogleConfigured, isDefaultUsername } from '../config/googleConfig';
@@ -55,8 +55,8 @@ const SignInCard = ({ onLogin, isLoading, error }: { onLogin: () => void; isLoad
           </>
         ) : (
           <>
-            Google login isn't configured: this site was built without <code>VITE_GOOGLE_CLIENT_ID</code>. Add it in your
-            host's environment variables (Netlify: Site configuration → Environment variables), then redeploy.
+            Google login isn't set up on this site yet. If you deployed it,{' '}
+            <Link to="/setup" className="font-medium underline">open the setup page</Link> to connect your Google credentials.
           </>
         )}
       </p>
@@ -177,11 +177,19 @@ const DashboardView = () => {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="page-title !mb-1">Dashboard</h1>
-            {username && (
-              <Link to={portfolioPath} className="inline-flex items-center gap-1.5 text-sm font-medium text-purple-600 hover:text-purple-800">
-                View my portfolio <ExternalLink size={14} />
-              </Link>
-            )}
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {username && (
+                <Link to={portfolioPath} className="inline-flex items-center gap-1.5 text-sm font-medium text-purple-600 hover:text-purple-800">
+                  View my portfolio <ExternalLink size={14} />
+                </Link>
+              )}
+              {/* The site owner manages the deployment's Google settings */}
+              {username && isDefaultUsername(username) && (
+                <a href="/setup" className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-purple-700">
+                  <Settings size={14} /> Site settings
+                </a>
+              )}
+            </div>
           </div>
           {user && (
             <div className="flex items-center gap-3 rounded-full bg-white py-1.5 pl-1.5 pr-2 shadow">

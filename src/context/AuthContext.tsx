@@ -64,7 +64,7 @@ function useGoogleTokenLogin({ onToken, onError }: LoginHandlers): () => void {
 }
 
 function useDisabledLogin({ onError }: LoginHandlers): () => void {
-  return useCallback(() => onError('Google login is not configured (VITE_GOOGLE_CLIENT_ID).'), [onError]);
+  return useCallback(() => onError('Google sign-in isn\'t set up on this site yet. The site owner can set it up at /setup.'), [onError]);
 }
 
 // Google's library throws on init without a client ID, which would blank the whole

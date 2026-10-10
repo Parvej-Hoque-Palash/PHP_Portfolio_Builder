@@ -109,8 +109,8 @@ const PublishInfo = ({ username, configFileId, registryVersion, registryError, o
 
       {configFileId && !googleConfig.apiKey && (
         <p className="text-xs text-blue-800/80">
-          Visitors can't load your portfolio yet: set <code>VITE_GOOGLE_API_KEY</code> (in Netlify: Site configuration →
-          Environment variables) and redeploy.
+          Visitors can't load portfolios yet: this site has no Google API key. The site owner can add one on the{' '}
+          <a href="/setup" className="underline">setup page</a>.
         </p>
       )}
     </div>

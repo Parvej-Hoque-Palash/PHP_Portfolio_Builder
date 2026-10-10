@@ -1,6 +1,6 @@
 import { getStore } from '@netlify/blobs';
-import { SITE_CONFIG } from '../../src/config/siteConfig';
 import { usernameFromEmail } from '../../src/utils/username';
+import { acceptedClientIds, bearerToken, inspectToken, json } from '../lib/siteSettings';
 
 /**
  * Personal-URL registry: maps a username ("php-jane-doe") to the Drive file ID of
@@ -21,12 +21,6 @@ const CONFIG_FILE_NAME = 'portfolio_config.json';
 
 const store = () => getStore({ name: 'portfolio-registry', consistency: 'strong' });
 
-const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-
 async function lookup(req: Request): Promise<Response> {
   const username = (new URL(req.url).searchParams.get('username') ?? '').toLowerCase();
   if (!USERNAME_RE.test(username)) return json(400, { error: 'Invalid username' });
@@ -34,15 +28,8 @@ async function lookup(req: Request): Promise<Response> {
   return fileId ? json(200, { username, fileId }) : json(404, { error: 'Not registered' });
 }
 
-interface TokenInfo {
-  aud?: string;
-  azp?: string;
-  email?: string;
-  email_verified?: string;
-}
-
 async function register(req: Request): Promise<Response> {
-  const token = req.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
+  const token = bearerToken(req);
   if (!token) return json(401, { error: 'Sign in to publish.' });
 
   let fileId: unknown;
@@ -54,13 +41,11 @@ async function register(req: Request): Promise<Response> {
   if (typeof fileId !== 'string' || !FILE_ID_RE.test(fileId)) return json(400, { error: 'Invalid file ID' });
 
   // Who is calling? Google confirms the token and the account's email.
-  const infoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token)}`);
-  if (!infoRes.ok) return json(401, { error: 'Your Google session has expired. Sign in again.' });
-  const info = (await infoRes.json()) as TokenInfo;
-  const clientId = process.env.VITE_GOOGLE_CLIENT_ID || SITE_CONFIG.googleClientId;
-  if (clientId && info.aud !== clientId && info.azp !== clientId) return json(403, { error: 'Token was issued to another app.' });
-  if (info.email_verified !== 'true') return json(403, { error: 'Email address is not verified.' });
-  const username = usernameFromEmail(info.email);
+  const caller = await inspectToken(token);
+  if (!caller) return json(401, { error: 'Your Google session has expired. Sign in again.' });
+  const clientIds = await acceptedClientIds();
+  if (clientIds.length > 0 && !clientIds.includes(caller.clientId)) return json(403, { error: 'Token was issued to another app.' });
+  const username = usernameFromEmail(caller.email);
   if (!username) return json(403, { error: 'Only Gmail accounts can publish.' });
 
   // The file must be this account's own portfolio file.
