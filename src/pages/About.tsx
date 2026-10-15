@@ -1,7 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { ChevronDown, User } from "lucide-react";
-import myphoto from "../images/myphto.webp";
 import { usePortfolio } from "../hooks/usePortfolio";
 import { getIcon } from "../utils/icons";
 import { nonEmpty } from "../utils/portfolio";
@@ -35,10 +34,10 @@ const SectionHeading = ({ children }: { children: React.ReactNode }) => (
 
 const About = () => {
   const [showFull, setShowFull] = useState(false);
-  const { data, isDefault } = usePortfolio();
+  const { data } = usePortfolio();
   const { about } = data;
   // Only the default portfolio falls back to the bundled photo.
-  const photoUrl = data.header.profilePhoto?.url ?? (isDefault ? myphoto : null);
+  const photoUrl = data.header.profilePhoto?.url ?? null;
   const hasMore =
     about.more.length > 0 || about.ventures.length > 0 || about.passions.length > 0 || about.closing.trim() !== "";
 

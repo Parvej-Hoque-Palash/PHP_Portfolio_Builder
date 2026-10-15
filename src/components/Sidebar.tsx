@@ -72,12 +72,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const sections = new Map(publicSections(data).map((s) => [s.id, s]));
 
   // In the order set in the dashboard's Layout tab, skipping hidden pages.
-  // Standard pages are also skipped when empty; the default portfolio has a bundled resume.
+  // Standard pages are also skipped when empty.
   const menuItems: { path: string; icon: LucideIcon; label: string }[] = [];
   for (const { id, visible } of data.layout) {
     if (!visible) continue;
     if (isStandardPage(id)) {
-      if (!standardPageHasContent(data, id, isDefault)) continue;
+      if (!standardPageHasContent(data, id)) continue;
       menuItems.push({ path: id === 'home' ? basePath || '/' : `${basePath}/${id}`, icon: PAGE_ICONS[id], label: STANDARD_PAGE_LABELS[id] });
     } else {
       // Custom sections created in the dashboard

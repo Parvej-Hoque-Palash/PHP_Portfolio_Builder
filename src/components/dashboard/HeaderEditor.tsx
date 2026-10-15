@@ -53,7 +53,7 @@ const HeaderEditor = ({ header, onChange }: HeaderEditorProps) => (
             className="dash-input"
             value={header.fullName}
             onChange={(e) => onChange({ fullName: e.target.value })}
-            placeholder="e.g. Md. Parvej Hoque Palash"
+            placeholder="e.g. Jane Doe"
           />
         </div>
         <div>

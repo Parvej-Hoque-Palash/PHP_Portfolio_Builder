@@ -60,9 +60,9 @@ export const isPageVisible = (data: PortfolioData, id: string): boolean =>
 
 /**
  * Whether a standard page has anything to show; empty pages stay out of the nav
- * even when visible. The default portfolio also has a bundled resume.
+ * even when visible.
  */
-export function standardPageHasContent(data: PortfolioData, page: StandardPage, isDefault: boolean): boolean {
+export function standardPageHasContent(data: PortfolioData, page: StandardPage): boolean {
   const { about, contact } = data;
   switch (page) {
     case 'home':
@@ -72,7 +72,7 @@ export function standardPageHasContent(data: PortfolioData, page: StandardPage, 
     case 'contact':
       return Boolean(contact.phone || contact.email || contact.location || contact.formspreeId) || contact.socials.length > 0;
     case 'resume':
-      return isDefault || data.header.resume !== null;
+      return data.header.resume !== null;
     default:
       return data[page].length > 0;
   }

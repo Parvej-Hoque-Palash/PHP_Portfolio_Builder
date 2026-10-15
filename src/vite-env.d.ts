@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_PORTFOLIO_CONFIG_FILE_ID?: string;
   readonly VITE_OWNER_EMAIL?: string;
   readonly VITE_DEFAULT_USERNAME?: string;
+  readonly VITE_VISITOR_COUNTER_KEY?: string;
 }
 
 interface ImportMeta {

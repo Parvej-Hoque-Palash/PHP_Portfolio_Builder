@@ -6,3 +6,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Asked for by the "Deploy to Netlify" button (see README.md).
+[template.environment]
+  OWNER_EMAIL = "Your Gmail address — only this account can complete /setup and own the site"

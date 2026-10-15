@@ -1,5 +1,41 @@
 # Portfolio
 
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Parvej-Hoque-Palash/PHP_Portfolio_Builder)
+
+Free and open source (MIT). Fork it or click the button above to get your own copy. You get your
+own portfolio site on a free `https://<name>.netlify.app` address, with sign-in through your own
+Gmail and content stored in your own Google Drive.
+
+## Make it your own (about 10 minutes)
+
+1. **Deploy.** Click **Deploy to Netlify** above (or fork this repo and import it in Netlify).
+   Netlify copies the repo to your GitHub account. When it asks for `OWNER_EMAIL`, enter your
+   Gmail address. Only that account can claim the site.
+2. **Rename your site (optional).** In Netlify go to **Site configuration → Change site name**,
+   e.g. `jane-doe` → `https://jane-doe.netlify.app`. A custom domain can be added there too.
+3. **Create Google credentials.** In [Google Cloud Console](https://console.cloud.google.com/):
+   - Create a project and enable the **Google Drive API** (APIs & Services → Library).
+   - **Google Auth Platform → Audience:** choose *External*, then **Publish app**.
+   - **Credentials → Create credentials → OAuth client ID → Web application.** Add your site
+     address (e.g. `https://jane-doe.netlify.app`) under **Authorized JavaScript origins**.
+   - **Credentials → Create credentials → API key.** Restrict it as described in
+     [Securing the API key](#securing-the-api-key).
+4. **Connect them.** Open `https://<your-site>/setup`, enter your Gmail, Client ID and API key,
+   then sign in with Google to confirm. No redeploy is needed.
+5. **Build your portfolio.** Open `/dashboard`, replace the placeholder content, upload your
+   photo and resume, and click **Save & Publish**.
+
+Requires **Netlify**: the sign-in setup and personal URLs use Netlify Functions and Netlify Blobs
+(both on the free plan). Other hosts such as Vercel can serve the pages, but `/setup` and `/php-…`
+URLs won't work there.
+
+Optional build variables (Netlify → Site configuration → Environment variables):
+`VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`, `VITE_DEFAULT_USERNAME` and
+`VITE_PORTFOLIO_CONFIG_FILE_ID` replace the `/setup` step, and `VITE_VISITOR_COUNTER_KEY` names
+the visitor counter (default: one per site address). See `.env.example`.
+
+## How it works
+
 Multi-user portfolio site. Each Gmail user edits their portfolio in `/dashboard`. The
 content is saved as `portfolio_config.json` in their own Google Drive and shared
 read-only with anyone who has the link.
@@ -13,7 +49,7 @@ Users only need a Gmail account. They sign in, build their portfolio, and click
   and the file, so nobody can take over someone else's URL.
 - **Shareable link:** `/portfolio?id=<Drive file ID>`, shown with a **Copy Link** button in the dashboard.
 
-## Bring your own Google credentials (optional, per user)
+### Bring your own Google credentials (optional, per user)
 
 By default, everyone signs in through the site's Google app (set up once by the owner below).
 A user can instead connect **their own** Google Cloud project at **`/account`** (linked from the
@@ -35,7 +71,7 @@ the signed-in user can change or remove theirs, and new values take effect only 
 confirm-by-sign-in step. Their Google app must be **published** (see Troubleshooting), or Google
 answers `Error 403: access_denied`.
 
-## One-time setup (site owner only)
+### One-time setup (site owner only)
 
 After deploying to Netlify, open **`https://<your-site>/setup`**:
 
@@ -95,3 +131,7 @@ review for this. The sign-in page shows these steps when a sign-in doesn't finis
 
 **"Error 400: origin_mismatch".** Add your site address (e.g. `https://your-site.netlify.app`) to the
 OAuth client's **Authorized JavaScript origins**.
+
+## License
+
+[MIT](LICENSE). Free to use, modify and deploy for your own portfolio.

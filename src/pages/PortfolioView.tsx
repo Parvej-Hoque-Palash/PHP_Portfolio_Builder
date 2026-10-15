@@ -17,7 +17,7 @@ const PortfolioView = () => {
   const { username: param } = useParams<{ username?: string }>();
   const { pathname, search, hash } = useLocation();
 
-  // Canonicalise "/MdParvejHoque9/projects" and "/mdparvejhoque9/projects" -> "/php-mdparvejhoque9/projects"
+  // Canonicalise "/JaneDoe/projects" and "/janedoe/projects" -> "/php-janedoe/projects"
   if (param) {
     const canonical = (hasUsernamePrefix(param) ? param : USERNAME_PREFIX + param).toLowerCase();
     if (canonical !== param) {

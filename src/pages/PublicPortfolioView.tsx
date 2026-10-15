@@ -147,7 +147,7 @@ const PortfolioPage = ({ data }: { data: PortfolioData }) => {
   for (const { id, visible } of data.layout) {
     if (!visible) continue;
     if (isStandardPage(id)) {
-      if (!standardPageHasContent(data, id, false)) continue;
+      if (!standardPageHasContent(data, id)) continue;
       const Page = PAGES[id];
       pages.push({ id, label: STANDARD_PAGE_LABELS[id], render: () => <Page /> });
     } else {

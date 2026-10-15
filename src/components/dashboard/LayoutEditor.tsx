@@ -90,17 +90,16 @@ const LayoutRow = ({ item, info, onVisibleChange }: LayoutRowProps) => {
 
 interface LayoutEditorProps {
   data: PortfolioData;
-  isDefault: boolean;
   actions: PortfolioEditorActions;
 }
 
 /** Drag-and-drop order and show/hide for every page in the public menu. */
-const LayoutEditor = ({ data, isDefault, actions }: LayoutEditorProps) => {
+const LayoutEditor = ({ data, actions }: LayoutEditorProps) => {
   const shownSections = new Set(publicSections(data).map((s) => s.id));
 
   const infoFor = (id: string): RowInfo => {
     if (isStandardPage(id)) {
-      return { label: STANDARD_PAGE_LABELS[id], icon: PAGE_ICONS[id], kind: 'Page', hasContent: standardPageHasContent(data, id, isDefault) };
+      return { label: STANDARD_PAGE_LABELS[id], icon: PAGE_ICONS[id], kind: 'Page', hasContent: standardPageHasContent(data, id) };
     }
     const sectionId = sectionIdOf(id);
     const section = data.sections.find((s) => s.id === sectionId);

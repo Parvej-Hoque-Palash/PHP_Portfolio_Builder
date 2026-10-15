@@ -127,7 +127,7 @@ const DashboardView = () => {
       case 'profile':
         return <HeaderEditor header={data.header} onChange={actions.updateHeader} />;
       case 'layout':
-        return <LayoutEditor data={data} isDefault={isDefaultUsername(username)} actions={actions} />;
+        return <LayoutEditor data={data} actions={actions} />;
       case 'home':
         return <HomeEditor value={data.home} onChange={(v) => actions.setContent('home', v)} />;
       case 'about':

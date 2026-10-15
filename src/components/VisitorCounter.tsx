@@ -3,8 +3,11 @@ import { motion } from 'framer-motion';
 import { Eye } from 'lucide-react';
 
 // Use a unique key so it doesn't collide with anyone else's counter
-// (all keys on this free service are public, so keep it distinctive)
-const COUNTER_KEY = 'parvej_hoque_palash_portfolio_visits';
+// (all keys on this free service are public, so keep it distinctive).
+// Defaults to one per site address, so each deployment counts its own visits.
+const COUNTER_KEY = (
+  import.meta.env.VITE_VISITOR_COUNTER_KEY || `portfolio_visits_${window.location.hostname}`
+).replace(/[^a-zA-Z0-9_-]/g, '_');
 const API_BASE = 'https://countapi.mileshilliard.com/api/v1';
 
 const VisitorCounter = () => {

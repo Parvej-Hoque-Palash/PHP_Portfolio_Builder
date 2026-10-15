@@ -25,3 +25,8 @@ playwright-report
 *.njsproj
 *.sln
 *.sw?
+
+# Personal secrets — never commit
+Credentials
+.env
+.env.local

@@ -5,7 +5,7 @@ import { googleConfig } from '../config/googleConfig';
  *
  * Visitors aren't signed in and Drive can't be searched by owner, so the site
  * needs this lookup. It lives in public/portfolios.json — a static file you can
- * edit and redeploy without rebuilding:  { "palash212": "1AbC…" }
+ * edit and redeploy without rebuilding:  { "php-jane-doe": "1AbC…" }
  */
 export type PortfolioRegistry = Record<string, string>;
 

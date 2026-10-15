@@ -23,7 +23,7 @@ export interface GoogleConfig {
 const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || SITE_CONFIG.googleClientId).trim();
 const ownerEmail = (import.meta.env.VITE_OWNER_EMAIL || SITE_CONFIG.ownerEmail).trim().toLowerCase();
 
-/** "mdparvejhoque9" or "php-mdparvejhoque9" -> "php-mdparvejhoque9" */
+/** "janedoe" or "php-janedoe" -> "php-janedoe" */
 function normalizeUsername(value: string): string {
   const v = value.trim().toLowerCase().replace(/\./g, '-');
   if (!v) return '';

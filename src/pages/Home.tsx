@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import myphoto from '../images/myphto.webp'
 import { usePortfolio } from '../hooks/usePortfolio';
 
 import { User } from 'lucide-react';
@@ -16,10 +15,10 @@ const wordVariants = {
 };
 
 const Home = () => {
-  const { data, isDefault } = usePortfolio();
+  const { data } = usePortfolio();
   const { home } = data;
   // Only the default portfolio falls back to the bundled photo.
-  const photoUrl = data.header.profilePhoto?.url ?? (isDefault ? myphoto : null);
+  const photoUrl = data.header.profilePhoto?.url ?? null;
   const headingWords = home.heading.split(/\s+/).filter(Boolean);
 
   return (

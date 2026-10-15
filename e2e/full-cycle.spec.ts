@@ -9,8 +9,8 @@ import { FOLDER, FakeDrive, PNG_1PX, TINY_PDF, installFakeGoogle } from './fakeG
  *   see the new content -> second Gmail user gets an isolated, blank portfolio.
  */
 
-const OWNER = 'mdparvejhoque9@gmail.com';
-const OWNER_SLUG = 'php-mdparvejhoque9';
+const OWNER = 'owner.demo@gmail.com';
+const OWNER_SLUG = 'php-owner-demo';
 const JANE = 'jane.doe@gmail.com';
 const JANE_SLUG = 'php-jane-doe';
 
@@ -48,9 +48,9 @@ test('full cycle: sign in, edit, upload, save, publish, view, second user', asyn
   await test.step('1. visitor sees the built-in portfolio at "/" and the owner slug', async () => {
     const page = await openAs(browser, null);
     await page.goto('/');
-    await expect(sidebar(page)).toContainText('Md. Parvej Hoque Palash');
+    await expect(sidebar(page)).toContainText('Your Name');
     await expect(sidebar(page).getByRole('link', { name: 'Dashboard' })).toHaveCount(0);
-    await page.goto('/mdparvejhoque9/skills'); // legacy form redirects to the prefixed URL
+    await page.goto('/owner-demo/skills'); // legacy form redirects to the prefixed URL
     await expect(page).toHaveURL(`/${OWNER_SLUG}/skills`);
     await expect(page.getByRole('heading', { name: 'My Skills' })).toBeVisible();
     await page.goto('/php-nobody');
@@ -71,7 +71,7 @@ test('full cycle: sign in, edit, upload, save, publish, view, second user', asyn
 
   await test.step('3. owner signs in and starts from the built-in content', async () => {
     await signIn(owner);
-    await expect(owner.getByLabel('Full Name')).toHaveValue('Md. Parvej Hoque Palash');
+    await expect(owner.getByLabel('Full Name')).toHaveValue('Your Name');
     await expect(owner.getByText('Unsaved changes')).toBeVisible(); // first save publishes
     await expect(owner.getByText(/once to create your portfolio file/)).toBeVisible();
   });
@@ -261,7 +261,7 @@ test('full cycle: sign in, edit, upload, save, publish, view, second user', asyn
     await nav.filter({ hasText: 'Prescriptions' }).click();
     await expect(visitor.getByText('Vitamin D, 1000 IU')).toBeVisible();
     // Nothing from the default portfolio leaks into hers
-    await expect(visitor.locator('body')).not.toContainText('Parvej');
+    await expect(visitor.locator('body')).not.toContainText('Your Name');
     await expect(visitor.locator('body')).not.toContainText('visits');
 
     // The owner's portfolio is unaffected
